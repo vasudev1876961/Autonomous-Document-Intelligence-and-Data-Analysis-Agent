@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Environment and sensitive data
+.env
+*.pem
+*.key
+
+# Data & outputs
+data/processed/*.db
+data/processed/vector_store/
+outputs/reports/*.pdf
+outputs/reports/*.json
+outputs/charts/*.png
+outputs/charts/*.svg
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+.pytest_cache/
+.coverage
+htmlcov/

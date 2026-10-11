@@ -1,0 +1,25 @@
+version: "1.0"
+agent_policy:
+  autonomy:
+    max_steps: 15
+    timeout_seconds: 120
+    allow_fallback_heuristics: true
+  
+  hitl_triggers:
+    on_cross_document_conflict: true
+    conflict_threshold_percentage: 1.0 # Discrepancy > 1% flags human review
+    on_ambiguous_period: true
+    on_unsupported_claim: true
+    before_report_finalization: false
+
+  evidence_policy:
+    require_exact_provenance: true
+    distinguish_categories:
+      - "Observed fact"
+      - "Supported interpretation"
+      - "Hypothesis"
+    reject_unverified_calculations: true
+
+  calculation_policy:
+    deterministic_only: true
+    zero_division_handling: "report_undefined"
