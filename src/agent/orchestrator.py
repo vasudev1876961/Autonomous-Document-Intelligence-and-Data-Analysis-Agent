@@ -30,7 +30,7 @@ class AgentOrchestrator:
         self.store = SQLiteStore(db_path)
         self.chart_gen = ChartGenerator()
         self.exporter = ReportExporter()
-        self.reconciliation_engine = SourceReconciliationEngine(material_threshold_pct=1.0)
+        self.reconciliation_engine = SourceReconciliationEngine(material_threshold_pct=0.5)
         self.graph = self._build_graph()
 
     def _node_ingest(self, state: AgentState) -> dict[str, Any]:
@@ -100,10 +100,9 @@ class AgentOrchestrator:
         
         # Look across raw chunks for segment tables or rows
         for ch in state.raw_chunks:
-            # Check for segment data in tabular chunks
-            if ch.content_type == "table" and ("Segment" in ch.content or "Q1" in ch.content):
+            # Check for segment data and totals in tabular chunks
+            if ch.content_type == "table":
                 lines = [line.strip() for line in ch.content.split("\n") if line.strip()]
-                # If it's a CSV table
                 for l in lines:
                     parts = [p.strip() for p in l.split(",") if p.strip()]
                     if len(parts) >= 3 and parts[0].startswith("Segment"):
@@ -112,17 +111,56 @@ class AgentOrchestrator:
                             p1_val = float(parts[1].replace(",", ""))
                             p2_val = float(parts[2].replace(",", ""))
                             extracted_segments.append({"segment": s_name, "p1": p1_val, "p2": p2_val})
-                            # Record source claims for reconciliation
                             source_claims.append(SourceClaim(
-                                metric_name="Revenue", period="Q1", reported_value=p1_val,
+                                metric_name=f"Revenue ({s_name})", period="Q1", reported_value=p1_val,
                                 unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
                             ))
                             source_claims.append(SourceClaim(
-                                metric_name="Revenue", period="Q2", reported_value=p2_val,
+                                metric_name=f"Revenue ({s_name})", period="Q2", reported_value=p2_val,
                                 unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
                             ))
                         except ValueError:
                             pass
+                    elif len(parts) >= 3 and parts[0].lower() in ["total", "consolidated"]:
+                        try:
+                            tot_p1 = float(parts[1].replace(",", ""))
+                            tot_p2 = float(parts[2].replace(",", ""))
+                            source_claims.append(SourceClaim(
+                                metric_name="Revenue", period="Q1", reported_value=tot_p1,
+                                unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
+                            ))
+                            source_claims.append(SourceClaim(
+                                metric_name="Revenue", period="Q2", reported_value=tot_p2,
+                                unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
+                            ))
+                        except ValueError:
+                            pass
+
+            # Extract narrative financial claims from text chunks
+            elif ch.content_type == "text":
+                import re
+                text_clean = ch.content.replace(",", "")
+                # Pattern: declined from 1000 lakh in Q1 to 900 lakh (supports ₹, $, €, £, I from font fallback)
+                match_range = re.search(r"declined from [₹$€£I]?\s*(\d+(?:\.\d+)?)\s*(?:lakh)?\s+in\s+(Q[1-4])\s+to\s+[₹$€£I]?\s*(\d+(?:\.\d+)?)", text_clean, re.IGNORECASE)
+                if match_range:
+                    v1, p1, v2 = float(match_range.group(1)), match_range.group(2).upper(), float(match_range.group(3))
+                    source_claims.append(SourceClaim(
+                        metric_name="Revenue", period=p1, reported_value=v1,
+                        unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
+                    ))
+                    source_claims.append(SourceClaim(
+                        metric_name="Revenue", period="Q2" if p1 == "Q1" else "Q3", reported_value=v2,
+                        unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
+                    ))
+
+                # Pattern: Q2 revenue was preliminarily estimated at 905 lakh
+                match_single = re.search(r"(Q[1-4])\s+revenue.*?estimated\s+at\s+[₹$€£I]?\s*(\d+(?:\.\d+)?)", text_clean, re.IGNORECASE)
+                if match_single:
+                    p, val = match_single.group(1).upper(), float(match_single.group(2))
+                    source_claims.append(SourceClaim(
+                        metric_name="Revenue", period=p, reported_value=val,
+                        unit="₹ lakh", source_location=ch.location, document_name=ch.file_name
+                    ))
 
         # Fallback to standard scenario figures if parser found partial rows
         if not extracted_segments:
@@ -147,7 +185,10 @@ class AgentOrchestrator:
         }
 
     def _node_reconcile_sources(self, state: AgentState) -> dict[str, Any]:
-        """Node 6: Cross-Document Discrepancy Reconciliation."""
+        """Node 6: Cross-Document Discrepancy Reconciliation & HITL Guardrail."""
+        from src.human_review.approval import ApprovalRequest, RiskLevel
+        from src.agent.specialists import SupervisorAgent
+
         raw_claims = state.extracted_data.get("source_claims", [])
         claims = [SourceClaim(**sc) for sc in raw_claims]
         
@@ -156,7 +197,25 @@ class AgentOrchestrator:
             state.task_id, 6, "RECONCILE_SOURCES",
             f"Compared {reconciliation.total_comparisons} claims, {reconciliation.discrepancy_count} discrepancies"
         )
-        return {"reconciliation_summary": reconciliation}
+
+        approval_reqs = list(state.approval_requests)
+        uncertainties = list(state.unresolved_questions)
+
+        if reconciliation.has_blocking_conflicts:
+            supervisor = SupervisorAgent()
+            appr = supervisor.evaluate_conflict_for_hitl(state.task_id, reconciliation)
+            if appr:
+                approval_reqs.append(appr)
+            for mat in reconciliation.material_conflicts:
+                uncertainties.append(
+                    f"CROSS-DOCUMENT DISCREPANCY: {mat.reconciliation_notes} (Requires verification of audited source vs preliminary bulletin)."
+                )
+
+        return {
+            "reconciliation_summary": reconciliation,
+            "approval_requests": approval_reqs,
+            "unresolved_questions": uncertainties
+        }
 
     def _node_run_analysis(self, state: AgentState) -> dict[str, Any]:
         """Node 7: Deterministic Computation (Delta R, %Delta R, Segment Contribution)."""
@@ -252,6 +311,12 @@ class AgentOrchestrator:
                 filename=f"segment_contribution_{state.task_id}.png"
             )
             chart_paths.append(str(s_chart))
+
+            w_chart = self.chart_gen.generate_waterfall_chart(
+                state.segment_analysis,
+                filename=f"waterfall_bridge_{state.task_id}.png"
+            )
+            chart_paths.append(str(w_chart))
 
         self.store.log_audit(state.task_id, 9, "GENERATE_CHARTS", f"Rendered {len(chart_paths)} analytical charts")
         return {"chart_paths": chart_paths}

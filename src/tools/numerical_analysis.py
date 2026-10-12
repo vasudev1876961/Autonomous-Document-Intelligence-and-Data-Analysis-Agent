@@ -50,6 +50,48 @@ class StatisticalSummaryResult(BaseModel):
     max_value: float
     sum_value: float
 
+class VarianceAnalysisResult(BaseModel):
+    metric_name: str
+    actual_value: float
+    budget_value: float
+    variance_amount: float
+    variance_percentage: Optional[float] = None
+    is_favorable: bool
+    status: str # "favorable", "unfavorable", "on_target"
+    unit: str
+
+class CAGRResult(BaseModel):
+    metric_name: str
+    beginning_value: float
+    ending_value: float
+    periods: int
+    cagr_percentage: Optional[float] = None
+    is_valid: bool
+    notes: str
+
+class GrowthSeriesItem(BaseModel):
+    period: str
+    value: float
+    sequential_growth_pct: Optional[float] = None
+    absolute_change: Optional[float] = None
+
+class GrowthSeriesResult(BaseModel):
+    metric_name: str
+    series: list[GrowthSeriesItem]
+    average_growth_pct: Optional[float] = None
+
+class OutlierItem(BaseModel):
+    index: int
+    value: float
+    z_score: float
+    is_outlier: bool
+
+class OutlierDetectionResult(BaseModel):
+    metric_name: str
+    outliers_detected: list[OutlierItem]
+    has_outliers: bool
+    threshold_z: float
+
 class NumericalAnalyzer:
     @staticmethod
     def compare_periods(
@@ -183,4 +225,168 @@ class NumericalAnalyzer:
             min_value=round(float(np.min(arr)), 4),
             max_value=round(float(np.max(arr)), 4),
             sum_value=round(float(np.sum(arr)), 4)
+        )
+
+    @staticmethod
+    def analyze_variance(
+        metric_name: str,
+        actual: float,
+        budget: float,
+        unit: str = "units",
+        higher_is_better: bool = True
+    ) -> VarianceAnalysisResult:
+        """
+        Computes variance: Variance = Actual - Budget.
+        Determines favorable vs unfavorable based on direction and metric polarity.
+        """
+        diff = round(actual - budget, 4)
+        pct_var = round((diff / budget * 100.0), 2) if budget != 0 else None
+
+        if diff == 0:
+            status = "on_target"
+            is_fav = True
+        elif higher_is_better:
+            is_fav = diff > 0
+            status = "favorable" if is_fav else "unfavorable"
+        else:
+            is_fav = diff < 0
+            status = "favorable" if is_fav else "unfavorable"
+
+        return VarianceAnalysisResult(
+            metric_name=metric_name,
+            actual_value=actual,
+            budget_value=budget,
+            variance_amount=diff,
+            variance_percentage=pct_var,
+            is_favorable=is_fav,
+            status=status,
+            unit=unit
+        )
+
+    @staticmethod
+    def calculate_cagr(
+        metric_name: str,
+        beginning_value: float,
+        ending_value: float,
+        periods: int
+    ) -> CAGRResult:
+        """
+        Computes Compound Annual Growth Rate (CAGR):
+        CAGR = (Ending / Beginning)^(1/n) - 1
+        """
+        if periods <= 0:
+            return CAGRResult(
+                metric_name=metric_name,
+                beginning_value=beginning_value,
+                ending_value=ending_value,
+                periods=periods,
+                cagr_percentage=None,
+                is_valid=False,
+                notes="Periods must be strictly greater than 0"
+            )
+        if beginning_value <= 0 or ending_value < 0:
+            return CAGRResult(
+                metric_name=metric_name,
+                beginning_value=beginning_value,
+                ending_value=ending_value,
+                periods=periods,
+                cagr_percentage=None,
+                is_valid=False,
+                notes="Beginning value must be positive for standard CAGR calculation"
+            )
+
+        cagr = (pow(ending_value / beginning_value, 1.0 / periods) - 1.0) * 100.0
+        return CAGRResult(
+            metric_name=metric_name,
+            beginning_value=beginning_value,
+            ending_value=ending_value,
+            periods=periods,
+            cagr_percentage=round(cagr, 2),
+            is_valid=True,
+            notes="Calculated via deterministic compound formula"
+        )
+
+    @staticmethod
+    def calculate_growth_series(
+        metric_name: str,
+        period_value_pairs: list[tuple[str, float]]
+    ) -> GrowthSeriesResult:
+        """
+        Calculates sequential (period-over-period) growth rates across a sequence of periods.
+        """
+        if not period_value_pairs:
+            return GrowthSeriesResult(metric_name=metric_name, series=[])
+
+        items: list[GrowthSeriesItem] = []
+        growth_rates: list[float] = []
+
+        for idx, (p_name, val) in enumerate(period_value_pairs):
+            if idx == 0:
+                items.append(GrowthSeriesItem(period=p_name, value=val, sequential_growth_pct=None, absolute_change=None))
+            else:
+                prev_val = period_value_pairs[idx - 1][1]
+                abs_change = round(val - prev_val, 4)
+                growth_pct = round((abs_change / prev_val * 100.0), 2) if prev_val != 0 else None
+                if growth_pct is not None:
+                    growth_rates.append(growth_pct)
+                items.append(GrowthSeriesItem(
+                    period=p_name,
+                    value=val,
+                    sequential_growth_pct=growth_pct,
+                    absolute_change=abs_change
+                ))
+
+        avg_growth = round(float(np.mean(growth_rates)), 2) if growth_rates else None
+        return GrowthSeriesResult(
+            metric_name=metric_name,
+            series=items,
+            average_growth_pct=avg_growth
+        )
+
+    @staticmethod
+    def detect_outliers(
+        metric_name: str,
+        values: list[float],
+        threshold_z: float = 2.0
+    ) -> OutlierDetectionResult:
+        """
+        Detects statistical anomalies using Z-scores: Z = (x - mean) / std_dev.
+        """
+        arr = np.array(values, dtype=np.float64)
+        if len(arr) < 3:
+            return OutlierDetectionResult(
+                metric_name=metric_name,
+                outliers_detected=[],
+                has_outliers=False,
+                threshold_z=threshold_z
+            )
+
+        mean_val = np.mean(arr)
+        std_val = np.std(arr)
+
+        if std_val == 0:
+            return OutlierDetectionResult(
+                metric_name=metric_name,
+                outliers_detected=[
+                    OutlierItem(index=i, value=float(v), z_score=0.0, is_outlier=False)
+                    for i, v in enumerate(arr)
+                ],
+                has_outliers=False,
+                threshold_z=threshold_z
+            )
+
+        items: list[OutlierItem] = []
+        has_out = False
+        for idx, val in enumerate(arr):
+            z = round(float((val - mean_val) / std_val), 3)
+            is_out = abs(z) >= threshold_z
+            if is_out:
+                has_out = True
+            items.append(OutlierItem(index=idx, value=float(val), z_score=z, is_outlier=is_out))
+
+        return OutlierDetectionResult(
+            metric_name=metric_name,
+            outliers_detected=items,
+            has_outliers=has_out,
+            threshold_z=threshold_z
         )

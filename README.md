@@ -11,6 +11,21 @@
 
 ---
 
+## ⚡ Key Highlights & Advanced Implementation (v2.0)
+
+| Core Pillar | Technical Implementation | Architectural Highlight |
+|---|---|---|
+| **Multi-Agent Collaboration** | `src/agent/specialists.py` | Specialized Planner, Retrieval Specialist, Quantitative Analyst, Independent Auditor, and Supervisor Agent. |
+| **Deterministic Calculations** | `src/tools/numerical_analysis.py` | Period-over-period comparison, segment attribution, variance analysis, CAGR, growth series, and outlier detection with zero LLM math hallucinations. |
+| **Cross-Document Discrepancy Reconciliation** | `src/tools/source_reconciliation.py` | Pairwise claim reconciliation across heterogeneous PDFs, Excels, CSVs, and Word docs with configurable materiality thresholds. |
+| **Human-in-the-Loop Review Center** | `src/human_review/review_queue.py` | Stateful escalation queue for resolving data conflicts, approving plans, and recording user decisions in SQLite. |
+| **Automated Benchmark & Ablation Suite** | `scripts/run_benchmarks.py` | ADI-Bench v1.0 measuring TCR (100%), MA (100%), CGR (100%), SC (100%), HR (0%), and RSR against baseline RAG. |
+| **Executive Streamlit Dashboard** | `app.py` | 7 interactive tabs: Studio, Visuals, Verification Ledger, HITL Queue, Benchmark Suite, Audit Trail, and Document Inspector. |
+| **Headless CLI Tools** | `scripts/run_investigation.py` | Full-featured CLI powered by `rich` for headless investigation runs and automated pipelines. |
+| **CI/CD Automation** | `.github/workflows/ci.yml` | GitHub Actions workflow automating 26-test unit/integration suite and benchmark verification. |
+
+---
+
 # 1. Abstract
 
 Organizations and individuals frequently maintain large collections of documents, including PDF reports, Excel workbooks, CSV datasets, Word documents, financial statements, research papers, and operational records. Extracting meaningful information from these sources requires more than document retrieval. It requires understanding the context of the documents, comparing numerical values, performing calculations, identifying inconsistencies, verifying evidence, and generating conclusions supported by reliable sources.

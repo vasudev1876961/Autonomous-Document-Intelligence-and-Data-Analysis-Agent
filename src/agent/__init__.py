@@ -4,6 +4,14 @@ from src.agent.brain import AgentBrain, GoalInterpretation, InvestigationFinding
 from src.agent.completion import CompletionEvaluator, CompletionCheckResult
 from src.agent.orchestrator import AgentOrchestrator
 
+from src.agent.specialists import (
+    PlannerSpecialist,
+    RetrievalSpecialist,
+    AnalyticalSpecialist,
+    VerificationAuditor,
+    SupervisorAgent,
+)
+
 __all__ = [
     "AgentState",
     "PlanStep",
@@ -14,4 +22,10 @@ __all__ = [
     "CompletionEvaluator",
     "CompletionCheckResult",
     "AgentOrchestrator",
+    "PlannerSpecialist",
+    "RetrievalSpecialist",
+    "AnalyticalSpecialist",
+    "VerificationAuditor",
+    "SupervisorAgent",
 ]
+

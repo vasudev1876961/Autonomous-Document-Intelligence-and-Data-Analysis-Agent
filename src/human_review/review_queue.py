@@ -1,7 +1,4 @@
-"""
-Review Queue Manager for Human-in-the-Loop checkpoints and audit tracking.
-"""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from src.human_review.approval import ApprovalRequest, ApprovalDecision, RiskLevel
 from src.memory.sqlite_store import SQLiteStore
@@ -51,7 +48,7 @@ class ReviewQueue:
         req.selected_option = selected_option
         req.user_comment = comments
         req.decided_by = decided_by
-        req.decided_at = datetime.utcnow()
+        req.decided_at = datetime.now(timezone.utc)
 
         # Persist to SQLite store
         self.store.record_approval(

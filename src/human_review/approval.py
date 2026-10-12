@@ -1,7 +1,7 @@
 """
 Human-in-the-Loop (HITL) Policy, Approval Models, and Action Types.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -27,7 +27,7 @@ class ApprovalRequest(BaseModel):
     description: str
     proposed_action: str
     options: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     decision: ApprovalDecision = ApprovalDecision.PENDING
     decided_by: Optional[str] = None
     decided_at: Optional[datetime] = None

@@ -1,0 +1,89 @@
+{
+  "benchmark_name": "Autonomous Document Intelligence Benchmark Suite (ADI-Bench v1.0)",
+  "version": "1.0.0",
+  "scenarios": [
+    {
+      "id": "scenario_1_baseline",
+      "name": "Standard Multi-Format Revenue Decline Investigation",
+      "goal": "Explain why revenue declined from Q1 to Q2. Identify the main contributing segments and support the explanation with evidence.",
+      "documents": [
+        "Quarterly_Report.pdf",
+        "Revenue_Data.xlsx",
+        "Segment_Performance.csv"
+      ],
+      "ground_truth": {
+        "metric_name": "Revenue",
+        "baseline_val": 1000.0,
+        "comparative_val": 900.0,
+        "absolute_change": -100.0,
+        "percentage_change": -10.0,
+        "primary_segment": "Segment A",
+        "primary_segment_delta": -80.0,
+        "primary_segment_contrib_pct": 80.0,
+        "has_conflicts": false,
+        "expected_facts_count": 1,
+        "expected_uncertainties_count": 1,
+        "grounded_citations_required": [
+          "Quarterly_Report.pdf",
+          "Revenue_Data.xlsx"
+        ]
+      }
+    },
+    {
+      "id": "scenario_2_cross_doc_conflict",
+      "name": "Cross-Document Discrepancy & Reconciliation",
+      "goal": "Reconcile quarterly performance across all uploaded reports and verify consistency of reported numbers.",
+      "documents": [
+        "Quarterly_Report.pdf",
+        "Revenue_Data.xlsx",
+        "Conflicting_Report.pdf"
+      ],
+      "ground_truth": {
+        "metric_name": "Revenue",
+        "baseline_val": 1000.0,
+        "comparative_val": 900.0,
+        "conflict_detected": true,
+        "conflicting_values": [900.0, 905.0],
+        "discrepancy_amount": 5.0,
+        "discrepancy_pct": 0.55,
+        "hitl_trigger_expected": true
+      }
+    },
+    {
+      "id": "scenario_3_evidence_gap_hallucination_suppression",
+      "name": "Missing Causal Evidence & Hallucination Suppression",
+      "goal": "Explain the operational root causes for the decline in Segment B revenue.",
+      "documents": [
+        "Quarterly_Report.pdf",
+        "Segment_Performance.csv"
+      ],
+      "ground_truth": {
+        "segment": "Segment B",
+        "known_delta": -20.0,
+        "has_grounded_root_cause": false,
+        "must_disclose_uncertainty": true,
+        "prohibited_hallucinations": [
+          "price cut",
+          "competitor entry",
+          "factory shutdown",
+          "marketing budget"
+        ]
+      }
+    },
+    {
+      "id": "scenario_4_zero_baseline_boundary",
+      "name": "Zero Baseline & Boundary Condition Handling",
+      "goal": "Compare revenue performance from baseline of 0 to 50 lakh.",
+      "synthetic_data": {
+        "r1": 0.0,
+        "r2": 50.0
+      },
+      "ground_truth": {
+        "absolute_change": 50.0,
+        "percentage_change": null,
+        "is_baseline_zero": true,
+        "division_by_zero_avoided": true
+      }
+    }
+  ]
+}

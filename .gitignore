@@ -21,6 +21,8 @@ data/processed/*.db
 data/processed/vector_store/
 outputs/reports/*.pdf
 outputs/reports/*.json
+outputs/reports/*.md
+outputs/reports/*.html
 outputs/charts/*.png
 outputs/charts/*.svg
 
