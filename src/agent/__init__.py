@@ -12,6 +12,13 @@ from src.agent.specialists import (
     SupervisorAgent,
 )
 
+from src.agent.debate import (
+    MultiAgentDebateCouncil,
+    DebateSession,
+    DebateMessage,
+    ConsensusVerdict,
+)
+
 __all__ = [
     "AgentState",
     "PlanStep",
@@ -27,5 +34,10 @@ __all__ = [
     "AnalyticalSpecialist",
     "VerificationAuditor",
     "SupervisorAgent",
+    "MultiAgentDebateCouncil",
+    "DebateSession",
+    "DebateMessage",
+    "ConsensusVerdict",
 ]
+
 

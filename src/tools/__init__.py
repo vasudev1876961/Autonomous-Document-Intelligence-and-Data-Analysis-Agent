@@ -10,6 +10,14 @@ from src.tools.source_reconciliation import SourceReconciliationEngine, SourceCl
 from src.tools.chart_generation import ChartGenerator
 from src.tools.report_export import ReportExporter
 
+from src.tools.scenario_modeling import (
+    ScenarioModelingEngine,
+    CounterfactualResult,
+    SensitivityMatrixResult,
+    RecoveryTargetPlan,
+    MonteCarloSimulationResult,
+)
+
 __all__ = [
     "NumericalAnalyzer",
     "PeriodComparisonResult",
@@ -24,4 +32,10 @@ __all__ = [
     "ReconciliationSummary",
     "ChartGenerator",
     "ReportExporter",
+    "ScenarioModelingEngine",
+    "CounterfactualResult",
+    "SensitivityMatrixResult",
+    "RecoveryTargetPlan",
+    "MonteCarloSimulationResult",
 ]
+

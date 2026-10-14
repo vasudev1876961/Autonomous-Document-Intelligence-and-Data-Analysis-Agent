@@ -61,3 +61,9 @@ class AgentState(BaseModel):
     report_markdown_path: Optional[str] = None
     report_pdf_path: Optional[str] = None
     final_report_text: Optional[str] = None
+    
+    # Advanced Intelligence Extensions
+    knowledge_graph_summary: Optional[dict[str, Any]] = None
+    scenario_results: Optional[dict[str, Any]] = None
+    debate_session: Optional[dict[str, Any]] = None
+

@@ -16,8 +16,12 @@ from src.evaluation.benchmark_runner import BenchmarkRunner
 from src.memory.sqlite_store import SQLiteStore
 from src.memory.task_history import TaskHistoryManager
 from src.tools.report_export import ReportExporter
+from src.retrieval.knowledge_graph import DocumentKnowledgeGraph
+from src.tools.scenario_modeling import ScenarioModelingEngine
+from src.agent.debate import MultiAgentDebateCouncil
 
 # Streamlit Page Setup
+
 st.set_page_config(
     page_title="Autonomous Document Intelligence & Data Analysis Agent",
     page_icon="🧠",
@@ -203,11 +207,16 @@ tabs = st.tabs([
     "🚀 Investigation Studio",
     "📊 Analytical Findings & Visuals",
     "🔍 Verification & Discrepancy Audit",
+    "🕸️ Causal Knowledge Graph",
+    "📈 What-If Scenarios & Sensitivity Engine",
+    "⚔️ Multi-Agent Debate Council",
     "🤝 Human-in-the-Loop Review Center",
     "🧪 Evaluation & Benchmarks",
     "📜 Audit Trail & History",
-    "📁 Document & Provenance Inspector"
+    "📁 Document & Provenance Inspector",
+    "⚡ Enterprise API & System Status"
 ])
+
 
 # ==========================================
 # TAB 1: INVESTIGATION STUDIO
@@ -427,9 +436,236 @@ with tabs[2]:
                 st.success("✅ All overlapping claims across sources are perfectly reconciled.")
 
 # ==========================================
-# TAB 4: HUMAN-IN-THE-LOOP REVIEW CENTER
+# TAB 4: CAUSAL KNOWLEDGE GRAPH
 # ==========================================
 with tabs[3]:
+    st.subheader("🕸️ Autonomous Causal Knowledge Graph (KG-RAG)")
+    st.caption("Extracted entity nodes, causal root-cause pathways, and degree centrality hubs with source citations.")
+    state = st.session_state.last_state
+    if not state or not state.knowledge_graph_summary:
+        st.info("No Knowledge Graph synthesized yet. Launch an investigation to extract causal entity relationships.")
+    else:
+        kg = state.knowledge_graph_summary
+        kg_col1, kg_col2, kg_col3, kg_col4 = st.columns(4)
+        with kg_col1:
+            st.metric("Total Entities (Nodes)", kg.get("total_nodes", 0))
+        with kg_col2:
+            st.metric("Total Relationships (Edges)", kg.get("total_edges", 0))
+        with kg_col3:
+            st.metric("Entity Types", len(kg.get("node_types", {})))
+        with kg_col4:
+            st.metric("Causal Paths Discovered", len(kg.get("causal_paths", [])))
+
+        st.markdown("---")
+        st.markdown("#### 🎯 Key Central Hub Entities (Degree Centrality)")
+        if kg.get("key_hubs"):
+            st.dataframe(pd.DataFrame(kg["key_hubs"]), use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        st.markdown("#### 🔗 Causal Root-Cause Pathways (Multi-Hop Graph Traversal)")
+        causal_paths = kg.get("causal_paths", [])
+        if causal_paths:
+            for idx, p in enumerate(causal_paths, 1):
+                path_str = " ➔ ".join([f"`{node_name}`" for node_name in p])
+                st.markdown(f"**Path {idx}:** {path_str}")
+        else:
+            st.info("No multi-hop causal paths found in current subgraph.")
+
+        st.markdown("---")
+        st.markdown("#### 📊 Entity & Relationship Distribution")
+        dist_col1, dist_col2 = st.columns(2)
+        with dist_col1:
+            st.markdown("**Entities by Type:**")
+            st.json(kg.get("node_types", {}))
+        with dist_col2:
+            st.markdown("**Relations by Type:**")
+            st.json(kg.get("relation_types", {}))
+
+# ==========================================
+# TAB 5: WHAT-IF SCENARIOS & SENSITIVITY ENGINE
+# ==========================================
+with tabs[4]:
+    st.subheader("📈 Deterministic Scenario Modeling & What-If Studio")
+    st.caption("Interactive counterfactual analysis, sensitivity shocks, recovery target trajectory solving, and Monte Carlo risk curves.")
+    state = st.session_state.last_state
+    
+    seg_summary = state.segment_analysis if state else None
+    if not seg_summary:
+        from src.tools.numerical_analysis import NumericalAnalyzer
+        sample_segs = [
+            {"segment": "Segment A", "p1": 500.0, "p2": 420.0},
+            {"segment": "Segment B", "p1": 300.0, "p2": 280.0},
+            {"segment": "Segment C", "p1": 200.0, "p2": 200.0},
+        ]
+        seg_summary = NumericalAnalyzer.analyze_segment_contributions("Revenue", sample_segs, "₹ lakh")
+        st.info("Showing interactive simulation playground calibrated on benchmark baseline data.")
+
+    sim_tab1, sim_tab2, sim_tab3, sim_tab4 = st.tabs([
+        "🔮 Counterfactual Simulation",
+        "🎛️ Sensitivity Matrix",
+        "🎯 Recovery Target Solver",
+        "🎲 Monte Carlo Volatility Bounds"
+    ])
+
+    with sim_tab1:
+        st.markdown("#### What-If Counterfactual Experiment")
+        st.caption("Simulate what consolidated revenue would be if specific segments performed differently in Period 2.")
+        
+        c_cols = st.columns(len(seg_summary.segments))
+        overrides = {}
+        for idx, seg in enumerate(seg_summary.segments):
+            with c_cols[idx]:
+                new_val = st.slider(
+                    f"{seg.segment_name} (Actual: {seg.period_2_value:.0f})",
+                    min_value=0.0,
+                    max_value=float(seg.period_1_value * 1.5),
+                    value=float(seg.period_2_value),
+                    step=5.0,
+                    key=f"cf_slider_{seg.segment_name}"
+                )
+                if new_val != seg.period_2_value:
+                    overrides[seg.segment_name] = new_val
+
+        cf_res = ScenarioModelingEngine.simulate_counterfactual(
+            base_summary=seg_summary,
+            scenario_name="Executive Scenario Simulation",
+            overrides=overrides
+        )
+
+        res_c1, res_c2, res_c3, res_c4 = st.columns(4)
+        with res_c1:
+            st.metric("Simulated Total Revenue", f"{cf_res.simulated_period_2_total:,.1f} {seg_summary.unit}")
+        with res_c2:
+            st.metric("Simulated Net Delta (ΔR)", f"{cf_res.simulated_delta:+,.1f} {seg_summary.unit}", f"{cf_res.simulated_pct_change:+,.1f}%")
+        with res_c3:
+            st.metric("Variance vs Actual Q2", f"{cf_res.delta_difference_from_actual:+,.1f} {seg_summary.unit}")
+        with res_c4:
+            st.metric("Decline Loss Preserved", f"{cf_res.loss_preserved_pct:.1f}%")
+
+        st.info(f"💡 **Executive Narrative:** {cf_res.narrative_summary}")
+
+    with sim_tab2:
+        st.markdown("#### Segment Sensitivity Curve")
+        st.caption("Evaluates overall revenue elasticity against percentage shocks in individual segments.")
+        target_name = st.selectbox("Select Business Segment to Shock", [s.segment_name for s in seg_summary.segments])
+        sens_res = ScenarioModelingEngine.compute_sensitivity_matrix(seg_summary, target_name)
+        
+        df_sens = pd.DataFrame([p.model_dump() for p in sens_res.points])
+        df_sens.columns = ["Shock (%)", f"{target_name} Value", "Total Revenue", "Overall Growth (%)"]
+        st.dataframe(df_sens, use_container_width=True, hide_index=True)
+        st.line_chart(df_sens.set_index("Shock (%)")[["Total Revenue"]])
+
+    with sim_tab3:
+        st.markdown("#### Forward Recovery Target Solver")
+        st.caption("Solves for the required revenue allocation across segments to hit an executive target.")
+        target_rev = st.number_input("Desired Target Consolidated Revenue (₹ lakh)", value=float(seg_summary.total_period_1), step=50.0)
+        rec_plan = ScenarioModelingEngine.calculate_recovery_targets(seg_summary, target_rev)
+        
+        st.markdown(f"**Feasibility Assessment:** `{rec_plan.feasibility_status}`")
+        st.markdown(f"**Required Incremental Revenue:** `{rec_plan.required_incremental:+,.1f} {seg_summary.unit}`")
+        st.info(f"📋 **Strategy Directive:** {rec_plan.narrative_strategy}")
+
+        rec_data = []
+        for s_name, t_val in rec_plan.segment_targets.items():
+            rec_data.append({
+                "Segment": s_name,
+                "Current Q2": f"{next(s.period_2_value for s in seg_summary.segments if s.segment_name == s_name):,.1f}",
+                "Required Target": f"{t_val:,.1f}",
+                "Required Growth (%)": f"{rec_plan.segment_required_growth_pct.get(s_name, 0.0):+,.1f}%"
+            })
+        st.dataframe(pd.DataFrame(rec_data), use_container_width=True, hide_index=True)
+
+    with sim_tab4:
+        st.markdown("#### Stochastic Monte Carlo Volatility Bounds (1,000 Runs)")
+        st.caption("Estimates probabilistic confidence intervals for forward performance under Gaussian market volatility.")
+        sim_vol = st.slider("Market Volatility Sigma (%)", 1.0, 15.0, 6.0, 0.5) / 100.0
+        mc_res = ScenarioModelingEngine.run_monte_carlo_forecast(seg_summary, num_simulations=1000, volatility_pct=sim_vol)
+        
+        mc1, mc2, mc3, mc4 = st.columns(4)
+        with mc1:
+            st.metric("5th Percentile (Conservative)", f"{mc_res.p5_conservative:,.1f}")
+        with mc2:
+            st.metric("50th Percentile (Median)", f"{mc_res.p50_median:,.1f}")
+        with mc3:
+            st.metric("95th Percentile (Optimistic)", f"{mc_res.p95_optimistic:,.1f}")
+        with mc4:
+            st.metric("Prob. of Baseline Recovery", f"{mc_res.prob_recovering_baseline:.1f}%")
+
+        if mc_res.simulation_samples:
+            st.bar_chart(pd.Series(mc_res.simulation_samples).sort_values().reset_index(drop=True))
+
+# ==========================================
+# TAB 6: MULTI-AGENT DEBATE COUNCIL
+# ==========================================
+with tabs[5]:
+    st.subheader("⚔️ Multi-Agent Red-Team Debate Council")
+    st.caption("Adversarial cross-examination between Quantitative Analysts, Retrieval Specialists, and Red-Team Auditors.")
+    state = st.session_state.last_state
+    
+    debate = state.debate_session if state else None
+    if not debate:
+        from src.tools.numerical_analysis import NumericalAnalyzer
+        sample_segs = [
+            {"segment": "Segment A", "p1": 500.0, "p2": 420.0},
+            {"segment": "Segment B", "p1": 300.0, "p2": 280.0},
+            {"segment": "Segment C", "p1": 200.0, "p2": 200.0},
+        ]
+        seg_summary = NumericalAnalyzer.analyze_segment_contributions("Revenue", sample_segs, "₹ lakh")
+        p_res = NumericalAnalyzer.compare_periods("Revenue", 1000.0, 900.0, "Q1", "Q2", "₹ lakh")
+        council = MultiAgentDebateCouncil()
+        debate = council.run_debate("Explain revenue decline from Q1 to Q2", p_res, seg_summary, None, []).model_dump()
+
+    verdict = debate.get("verdict", {})
+    v_c1, v_c2 = st.columns([1, 2])
+    with v_c1:
+        st.markdown(f"### Consensus Status")
+        if verdict.get("consensus_reached"):
+            st.success(f"🤝 **Consensus Achieved** ({verdict.get('confidence_score', 0)*100:.1f}% confidence)")
+        else:
+            st.warning("⚠️ **Unresolved Dissenting Claims**")
+        st.markdown(f"**HITL Mandate:** `{'Required' if verdict.get('requires_hitl') else 'Automated Verification'}`")
+    with v_c2:
+        st.markdown("### Executive Supervisor Recommendation")
+        st.info(f"📜 {verdict.get('audit_recommendation', 'Approved.')}")
+
+    st.markdown("---")
+    st.markdown("#### 🎙️ Chamber Debate Transcript")
+    for msg in debate.get("rounds", []):
+        role = msg.get("speaker_role")
+        name = msg.get("speaker_name")
+        r_num = msg.get("round_number")
+        content = msg.get("content")
+        cites = msg.get("citations", [])
+
+        role_icons = {
+            "Quantitative Analyst": "🧮",
+            "Retrieval Specialist": "🔍",
+            "Red-Team Auditor": "🛡️",
+            "Executive Supervisor": "👑"
+        }
+        icon = role_icons.get(role, "🤖")
+        with st.chat_message(name, avatar=icon):
+            st.markdown(f"**[Round {r_num}] {role} ({name})**")
+            st.write(content)
+            if cites:
+                st.caption(f"Citations: {', '.join(cites)}")
+
+    st.markdown("---")
+    f_c1, f_c2 = st.columns(2)
+    with f_c1:
+        st.markdown("#### ✅ Agreed Facts")
+        for f in verdict.get("agreed_facts", []):
+            st.markdown(f"- {f}")
+    with f_c2:
+        st.markdown("#### ❓ Surviving Uncertainties / Disputed Claims")
+        for d in verdict.get("disputed_claims", []):
+            st.markdown(f"- ⚠️ {d}")
+
+# ==========================================
+# TAB 7: HUMAN-IN-THE-LOOP REVIEW CENTER
+# ==========================================
+with tabs[6]:
+
     st.subheader("🤝 Human-in-the-Loop Review Queue")
     st.caption("Inspect and resolve escalations, approve plans, or resolve cross-document data conflicts.")
 
@@ -471,9 +707,9 @@ with tabs[3]:
                         st.rerun()
 
 # ==========================================
-# TAB 5: EVALUATION & BENCHMARKS
+# TAB 8: EVALUATION & BENCHMARKS
 # ==========================================
-with tabs[4]:
+with tabs[7]:
     st.subheader("🧪 Automated Benchmark Suite (ADI-Bench v1.0)")
     st.caption("Measures task completion, numerical accuracy, citation grounding, hallucination suppression, and recovery success.")
 
@@ -541,9 +777,9 @@ with tabs[4]:
         st.info("Click 'Run Full Benchmark Suite' above to execute the benchmark evaluation and ablation study.")
 
 # ==========================================
-# TAB 6: AUDIT TRAIL & HISTORY
+# TAB 9: AUDIT TRAIL & HISTORY
 # ==========================================
-with tabs[5]:
+with tabs[8]:
     state = st.session_state.last_state
     if state:
         st.subheader("Step-by-Step Autonomous Execution Trail")
@@ -593,9 +829,9 @@ with tabs[5]:
                 )
 
 # ==========================================
-# TAB 7: DOCUMENT & PROVENANCE INSPECTOR
+# TAB 10: DOCUMENT & PROVENANCE INSPECTOR
 # ==========================================
-with tabs[6]:
+with tabs[9]:
     st.subheader("Document Catalog & Chunk Provenance Inspector")
     state = st.session_state.last_state
     if state and state.document_manifest:
@@ -625,3 +861,53 @@ with tabs[6]:
         st.dataframe(pd.DataFrame(chunk_data), use_container_width=True, hide_index=True)
     else:
         st.info("No documents inspected yet. Launch an investigation to explore chunk provenance.")
+
+# ==========================================
+# TAB 11: ENTERPRISE API & SYSTEM STATUS
+# ==========================================
+with tabs[10]:
+    st.subheader("⚡ Enterprise FastAPI REST Microservice")
+    st.caption("Headless microservice architecture for programmatic document intelligence, automated CI/CD pipelines, and microservice integration.")
+
+    api_c1, api_c2 = st.columns(2)
+    with api_c1:
+        st.markdown("""
+        #### 📚 Microservice Specifications
+        - **Swagger / OpenAPI Documentation:** [`http://localhost:8000/docs`](http://localhost:8000/docs)
+        - **Redoc Interactive Explorer:** [`http://localhost:8000/redoc`](http://localhost:8000/redoc)
+        - **Core Architecture:** FastAPI + Pydantic v2 + Uvicorn + SQLite WAL
+        
+        #### 🔗 Available REST Endpoints:
+        | Method | Endpoint | Description |
+        |---|---|---|
+        | `GET` | `/health` | System health check & active database indicator |
+        | `POST` | `/api/v1/investigate` | Autonomous investigation runner |
+        | `POST` | `/api/v1/scenarios/simulate` | What-if simulation, sensitivity & Monte Carlo |
+        | `POST` | `/api/v1/debate` | Multi-Agent Red-Team Debate Council |
+        | `GET` | `/api/v1/hitl/queue` | List pending human approvals |
+        | `POST` | `/api/v1/hitl/decision` | Submit human override / approval |
+        | `GET` | `/api/v1/benchmarks/run` | Execute ADI-Bench v1.0 suite |
+        | `GET` | `/api/v1/reports/{report_name}` | Download PDF / Markdown deliverables |
+        """)
+
+    with api_c2:
+        st.markdown("""
+        #### 💻 Launching the Headless Microservice
+        ```bash
+        # Start server with auto-reload on port 8000
+        python scripts/run_api.py --port 8000 --host 0.0.0.0
+        ```
+
+        #### 📡 Sample cURL Query:
+        ```bash
+        curl -X POST "http://localhost:8000/api/v1/scenarios/simulate" \\
+             -H "Content-Type: application/json" \\
+             -d '{
+               "scenario_name": "Flat Segment A",
+               "overrides": {"Segment A": 500.0},
+               "target_revenue": 1000.0,
+               "num_simulations": 500
+             }'
+        ```
+        """)
+

@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class AppSettings(BaseModel):
     app_name: str = "Autonomous Document Intelligence and Data Analysis Agent"
-    version: str = "1.0.0"
+    version: str = "3.0.0"
     base_dir: Path = BASE_DIR
     
     # Storage Paths
@@ -24,6 +24,11 @@ class AppSettings(BaseModel):
     # Database & Storage
     sqlite_db_path: Path = BASE_DIR / "data" / "processed" / "agent_memory.db"
     vector_store_dir: Path = BASE_DIR / "data" / "processed" / "vector_store"
+
+    @property
+    def db_path(self) -> Path:
+        return self.sqlite_db_path
+
     
     # Agent Guardrails & Limits
     max_agent_iterations: int = 15

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Executive Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adi-dashboard
+    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - shared-data:/app/data/processed
+      - shared-outputs:/app/outputs
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  # Enterprise FastAPI Microservice
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adi-api
+    command: python scripts/run_api.py --port 8000 --host 0.0.0.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - shared-data:/app/data/processed
+      - shared-outputs:/app/outputs
+    restart: unless-stopped
+
+volumes:
+  shared-data:
+  shared-outputs:

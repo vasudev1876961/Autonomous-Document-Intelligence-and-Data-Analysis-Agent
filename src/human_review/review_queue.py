@@ -65,3 +65,26 @@ class ReviewQueue:
         if task_id:
             reqs = [r for r in reqs if r.task_id == task_id]
         return [r for r in reqs if r.decision == ApprovalDecision.PENDING]
+
+    def list_pending(self, task_id: Optional[str] = None) -> list[ApprovalRequest]:
+        return self.get_pending_requests(task_id)
+
+    def resolve_request(
+        self,
+        request_id: str,
+        decision: ApprovalDecision,
+        reviewer_id: str = "User",
+        override_value: Optional[float] = None,
+        notes: str = ""
+    ) -> Optional[ApprovalRequest]:
+        comments = notes
+        if override_value is not None:
+            comments = f"Override: {override_value} | {notes}"
+        return self.submit_decision(
+            request_id=request_id,
+            decision=decision,
+            selected_option=decision.value,
+            comments=comments,
+            decided_by=reviewer_id
+        )
+

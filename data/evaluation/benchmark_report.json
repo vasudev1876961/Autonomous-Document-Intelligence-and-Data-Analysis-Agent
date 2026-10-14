@@ -1,6 +1,6 @@
 {
   "benchmark_name": "Autonomous Document Intelligence Benchmark Suite (ADI-Bench v1.0)",
-  "run_timestamp": "2026-10-12 05:25:25 UTC",
+  "run_timestamp": "2026-10-14 18:09:42 UTC",
   "scenario_scores": [
     {
       "scenario_id": "scenario_1_baseline",
@@ -21,7 +21,7 @@
       "cgr_score": 100.0,
       "sc_score": 100.0,
       "hr_score": 0.0,
-      "rsr_score": 0.0,
+      "rsr_score": 100.0,
       "notes": "Verified end-to-end evidence alignment"
     },
     {
@@ -53,8 +53,8 @@
     "citation_grounding_rate": 100.0,
     "source_coverage": 100.0,
     "hallucination_rate": 0.0,
-    "recovery_success_rate": 50.0,
-    "average_latency_seconds": 4.9
+    "recovery_success_rate": 100.0,
+    "average_latency_seconds": 4.13
   },
   "ablation_results": [
     {
@@ -64,7 +64,7 @@
       "citation_grounding_rate": 100.0,
       "source_coverage": 100.0,
       "hallucination_rate": 0.0,
-      "recovery_success_rate": 50.0,
+      "recovery_success_rate": 100.0,
       "total_scenarios_evaluated": 4
     },
     {

@@ -21,8 +21,12 @@ from src.tools.report_export import ReportExporter
 from src.verification.verifier_pipeline import VerificationPipeline
 from src.memory.sqlite_store import SQLiteStore
 from src.reporting.report_builder import ReportBuilder
+from src.retrieval.knowledge_graph import DocumentKnowledgeGraph
+from src.tools.scenario_modeling import ScenarioModelingEngine
+from src.agent.debate import MultiAgentDebateCouncil
 
 class AgentOrchestrator:
+
     def __init__(self, db_path: Optional[Path] = None):
         self.ingestion_mgr = IngestionManager()
         self.retriever = HybridRetriever()
@@ -295,6 +299,81 @@ class AgentOrchestrator:
         self.store.log_audit(state.task_id, 8, "VERIFY_FINDINGS", audit_report.summary_verdict)
         return {"verification_audit": audit_report}
 
+    def _node_build_knowledge_graph(self, state: AgentState) -> dict[str, Any]:
+        """Node 8b: Autonomous Knowledge Graph & Causal Network Construction."""
+        kg = DocumentKnowledgeGraph()
+        raw_claims = state.extracted_data.get("source_claims", [])
+        claims = [SourceClaim(**sc) for sc in raw_claims]
+        
+        kg.populate_from_investigation(
+            chunks=state.raw_chunks,
+            period_data=state.period_comparison,
+            segment_data=state.segment_analysis,
+            source_claims=claims
+        )
+        summary = kg.get_summary()
+        self.store.log_audit(
+            state.task_id, 8, "BUILD_KNOWLEDGE_GRAPH",
+            f"Synthesized causal graph with {summary.total_nodes} entities and {summary.total_edges} relations"
+        )
+        return {"knowledge_graph_summary": summary.model_dump()}
+
+    def _node_simulate_scenarios(self, state: AgentState) -> dict[str, Any]:
+        """Node 8c: Deterministic Counterfactual & Sensitivity Modeling."""
+        scenario_dict: dict[str, Any] = {}
+        if state.segment_analysis:
+            target_seg = state.segment_analysis.segments[0] if state.segment_analysis.segments else None
+            if target_seg:
+                cf = ScenarioModelingEngine.simulate_counterfactual(
+                    base_summary=state.segment_analysis,
+                    scenario_name=f"{target_seg.segment_name} Baseline Preservation",
+                    overrides={target_seg.segment_name: target_seg.period_1_value}
+                )
+                scenario_dict["counterfactual"] = cf.model_dump()
+
+                sens = ScenarioModelingEngine.compute_sensitivity_matrix(
+                    base_summary=state.segment_analysis,
+                    segment_name=target_seg.segment_name
+                )
+                scenario_dict["sensitivity"] = sens.model_dump()
+
+            rec = ScenarioModelingEngine.calculate_recovery_targets(
+                base_summary=state.segment_analysis,
+                target_revenue=state.segment_analysis.total_period_1
+            )
+            scenario_dict["recovery_plan"] = rec.model_dump()
+
+            mc = ScenarioModelingEngine.run_monte_carlo_forecast(
+                base_summary=state.segment_analysis,
+                num_simulations=1000,
+                volatility_pct=0.06
+            )
+            scenario_dict["monte_carlo"] = mc.model_dump()
+
+            self.store.log_audit(
+                state.task_id, 8, "SIMULATE_SCENARIOS",
+                f"Generated counterfactuals, sensitivity curve, and Monte Carlo forecast (p50={mc.p50_median})"
+            )
+
+        return {"scenario_results": scenario_dict}
+
+    def _node_conduct_debate(self, state: AgentState) -> dict[str, Any]:
+        """Node 8d: Multi-Agent Red-Team Debate and Consensus Council."""
+        council = MultiAgentDebateCouncil()
+        debate_sess = council.run_debate(
+            goal=state.user_goal,
+            period_res=state.period_comparison,
+            seg_summary=state.segment_analysis,
+            reconciliation=state.reconciliation_summary,
+            evidence_chunks=state.retrieved_evidence
+        )
+        
+        self.store.log_audit(
+            state.task_id, 8, "CONDUCT_DEBATE",
+            f"Multi-Agent Council completed {len(debate_sess.rounds)} rounds (confidence: {debate_sess.verdict.confidence_score*100:.1f}%)"
+        )
+        return {"debate_session": debate_sess.model_dump()}
+
     def _node_generate_visualizations(self, state: AgentState) -> dict[str, Any]:
         """Node 9: Visual Analytics Rendering."""
         chart_paths: list[str] = []
@@ -363,6 +442,9 @@ class AgentOrchestrator:
         builder.add_node("reconcile_sources", self._node_reconcile_sources)
         builder.add_node("run_analysis", self._node_run_analysis)
         builder.add_node("verify_findings", self._node_verify_findings)
+        builder.add_node("build_knowledge_graph", self._node_build_knowledge_graph)
+        builder.add_node("simulate_scenarios", self._node_simulate_scenarios)
+        builder.add_node("conduct_debate", self._node_conduct_debate)
         builder.add_node("generate_visualizations", self._node_generate_visualizations)
         builder.add_node("generate_report", self._node_generate_report)
 
@@ -375,11 +457,15 @@ class AgentOrchestrator:
         builder.add_edge("extract_data", "reconcile_sources")
         builder.add_edge("reconcile_sources", "run_analysis")
         builder.add_edge("run_analysis", "verify_findings")
-        builder.add_edge("verify_findings", "generate_visualizations")
+        builder.add_edge("verify_findings", "build_knowledge_graph")
+        builder.add_edge("build_knowledge_graph", "simulate_scenarios")
+        builder.add_edge("simulate_scenarios", "conduct_debate")
+        builder.add_edge("conduct_debate", "generate_visualizations")
         builder.add_edge("generate_visualizations", "generate_report")
         builder.add_edge("generate_report", END)
 
         return builder.compile()
+
 
     def run_investigation(self, goal: str, file_paths: list[Path | str]) -> AgentState:
         """

@@ -11,18 +11,23 @@
 
 ---
 
-## ⚡ Key Highlights & Advanced Implementation (v2.0)
+## ⚡ Key Highlights & Advanced Implementation (v3.0 Enterprise Edition)
 
 | Core Pillar | Technical Implementation | Architectural Highlight |
 |---|---|---|
-| **Multi-Agent Collaboration** | `src/agent/specialists.py` | Specialized Planner, Retrieval Specialist, Quantitative Analyst, Independent Auditor, and Supervisor Agent. |
-| **Deterministic Calculations** | `src/tools/numerical_analysis.py` | Period-over-period comparison, segment attribution, variance analysis, CAGR, growth series, and outlier detection with zero LLM math hallucinations. |
+| **Autonomous Knowledge Graph & Causal Network (KG-RAG)** | `src/retrieval/knowledge_graph.py` | Extracts financial and operational entities, maps multi-hop causal paths (e.g. supply disruption ➔ segment decline ➔ net revenue), computes degree centrality, and exports Cytoscape JSON. |
+| **Deterministic Scenario & Sensitivity Engine** | `src/tools/scenario_modeling.py` | Executive counterfactual simulations (what-if overrides), sensitivity matrices across shocks (-20% to +20%), forward recovery target solver, and 1,000-run Monte Carlo volatility bounds with zero LLM math hallucinations. |
+| **Multi-Agent Red-Team Debate Council** | `src/agent/debate.py` | 4-round adversarial debate between Quantitative Analyst (Quant-Alpha), Retrieval Specialist (Lexi-Search), Red-Team Auditor (Adversary-Prime), and Executive Supervisor (Supervisor-Chief) with consensus ruling and confidence grading. |
+| **Enterprise FastAPI REST Microservice** | `src/api/server.py` | Headless microservice on port 8000 with interactive Swagger UI (`/docs`), ReDoc, 9 REST endpoints for investigations, scenarios, debate, HITL resolution, and report downloads. |
+| **Layout-Aware Spatial & OCR Ingestion** | `src/ingestion/ocr_layout_parser.py` | PyMuPDF spatial bounding-box block decomposition, scanned PDF density classification, embedded figure discovery, and OCR fallback. |
+| **Executive Streamlit Dashboard (11 Tabs)** | `app.py` | 11 comprehensive tabs: Studio, Visuals, Verification Ledger, Causal Knowledge Graph, What-If Scenarios, Multi-Agent Debate, HITL Queue, ADI-Bench, Audit Trail, Document Inspector, and API Status. |
+| **Deterministic Numerical Analytics** | `src/tools/numerical_analysis.py` | Period-over-period comparison, segment attribution additivity proofs, variance analysis, CAGR, growth series, and outlier detection. |
 | **Cross-Document Discrepancy Reconciliation** | `src/tools/source_reconciliation.py` | Pairwise claim reconciliation across heterogeneous PDFs, Excels, CSVs, and Word docs with configurable materiality thresholds. |
-| **Human-in-the-Loop Review Center** | `src/human_review/review_queue.py` | Stateful escalation queue for resolving data conflicts, approving plans, and recording user decisions in SQLite. |
-| **Automated Benchmark & Ablation Suite** | `scripts/run_benchmarks.py` | ADI-Bench v1.0 measuring TCR (100%), MA (100%), CGR (100%), SC (100%), HR (0%), and RSR against baseline RAG. |
-| **Executive Streamlit Dashboard** | `app.py` | 7 interactive tabs: Studio, Visuals, Verification Ledger, HITL Queue, Benchmark Suite, Audit Trail, and Document Inspector. |
-| **Headless CLI Tools** | `scripts/run_investigation.py` | Full-featured CLI powered by `rich` for headless investigation runs and automated pipelines. |
-| **CI/CD Automation** | `.github/workflows/ci.yml` | GitHub Actions workflow automating 26-test unit/integration suite and benchmark verification. |
+| **Human-in-the-Loop Governance** | `src/human_review/review_queue.py` | Stateful escalation queue for resolving data conflicts, approving plans, and recording user decisions in SQLite WAL store. |
+| **Automated Benchmark & Ablation Suite** | `scripts/run_benchmarks.py` | ADI-Bench v1.0 measuring TCR (100%), MA (100%), CGR (100%), SC (100%), HR (0%), and RSR (100%) against baseline RAG. |
+| **Production Docker Containerization** | `Dockerfile` & `docker-compose.yml` | Multi-container Docker Compose stack orchestrating dashboard and API with persistent shared volumes and healthchecks. |
+| **Full Automated Testing Suite** | `.github/workflows/ci.yml` | 36 comprehensive unit & integration tests covering the complete agent lifecycle, REST API, knowledge graph, debate council, and math proofs. |
+
 
 ---
 
@@ -1794,23 +1799,53 @@ The final project should contain:
 
 ---
 
-# 26. Future Enhancements
+# 26. Advanced v3.0 Enterprise Architecture & Extensions
 
-After the core system is validated, future improvements may include:
+The system has been advanced to **v3.0 Enterprise Edition**, delivering six enterprise-grade pillars:
 
-- OCR and layout-aware processing for scanned documents.
-- Vision-language models for charts, figures, and complex layouts.
-- Multi-agent collaboration for specialized retrieval, analysis, and verification tasks.
-- Knowledge graphs for entity and relationship tracking.
-- Domain-specific analytical plugins.
-- Version-aware document change detection.
-- Scheduled monitoring of updated document collections.
-- More advanced cost-aware planning.
-- Local LLM deployment for environments with stricter data privacy requirements.
-- Evaluation against public document-question-answering benchmarks.
-- Integration with enterprise document repositories where authorized.
+### 26.1 Autonomous Causal Knowledge Graph (KG-RAG)
+Located in `src/retrieval/knowledge_graph.py`, this module builds an attributed directed knowledge graph (`DocumentKnowledgeGraph`) using `networkx`:
+- **Entity Decomposition:** Mines business segments, metrics, periods, claims, and operational drivers with citation provenance.
+- **Attributed Relationships:** Encodes typed edges (`CONTRIBUTES_TO`, `EXPERIENCED_EVENT`, `REPORTED_IN`, `CAUSED_BY`, `DISCREPANCY_WITH`).
+- **Multi-Hop Pathfinding:** Discovers causal chains connecting macro risks (e.g., supplier factory delays) to segment sales volume and consolidated revenue decline.
+- **Graph Centrality & Visualization:** Computes degree centrality to isolate systemic bottleneck entities and exports Cytoscape JSON for front-end rendering.
 
-Multi-agent architecture should be added only when independent specialization or parallel execution provides measurable benefits over the single-agent design.
+### 26.2 Deterministic Scenario Modeling & Sensitivity Engine
+Located in `src/tools/scenario_modeling.py`, this module provides executive what-if simulations with zero LLM math hallucination:
+- **Counterfactual Simulation:** Calculates what period 2 consolidated revenue would be under arbitrary segment overrides (e.g. "What if Segment A held flat?"), computing exact loss preserved.
+- **Sensitivity Matrix:** Shocks individual segments from -20% to +20% to map overall revenue elasticity curves.
+- **Recovery Target Trajectory Solver:** Programmatically solves for segment revenue quotas and required growth rates to achieve target full-year budgets.
+- **Stochastic Monte Carlo Volatility Bounds:** Executes 1,000 stochastic Gaussian iterations across segment bases, returning conservative (p5), median (p50), and optimistic (p95) confidence bounds and recovery probabilities.
+
+### 26.3 Multi-Agent Red-Team Debate Council
+Located in `src/agent/debate.py`, this module orchestrates structured 4-round adversarial chamber debates:
+- **Lead Quantitative Analyst (Quant-Alpha):** Presents mathematical attribution proofs and invariants.
+- **Retrieval Specialist (Lexi-Search):** Corroborates numbers with quoted textual evidence and page citations.
+- **Red-Team Auditor (Adversary-Prime):** Adversarially challenges omissions, identifies undocumented segment declines, and tests cross-document discrepancies.
+- **Executive Supervisor (Supervisor-Chief):** Arbitrates arguments, evaluates consensus, grades confidence, logs agreed facts and surviving uncertainties, and mandates HITL escalation when necessary.
+
+### 26.4 Enterprise FastAPI REST Microservice
+Located in `src/api/server.py` with runner `scripts/run_api.py`:
+- Headless, asynchronous REST service with automatic interactive documentation (`/docs` OpenAPI and `/redoc`).
+- Endpoints:
+  - `GET /health`: Health status, version, and database indicators.
+  - `POST /api/v1/investigate`: Triggers end-to-end investigation with state persistence.
+  - `POST /api/v1/scenarios/simulate`: Counterfactual, sensitivity, and Monte Carlo engine.
+  - `POST /api/v1/debate`: Multi-agent debate council runner.
+  - `GET /api/v1/hitl/queue` & `POST /api/v1/hitl/decision`: Governance queue management.
+  - `GET /api/v1/benchmarks/run`: Programmatic ADI-Bench runner.
+  - `GET /api/v1/reports/{report_name}`: Binary PDF and Markdown download endpoints.
+
+### 26.5 Layout-Aware Spatial & OCR Ingestion
+Located in `src/ingestion/ocr_layout_parser.py`:
+- PyMuPDF spatial bounding-box block decomposition classifying headers, tables, body text, and footers.
+- Scanned PDF classification based on character density per unit area and embedded bitmap image ratios.
+- Extraction of embedded charts and figures to disk for multi-modal analysis.
+
+### 26.6 Production Docker Deployment
+- `Dockerfile`: Multi-stage Python 3.12 slim image with system libraries for PDF font rendering.
+- `docker-compose.yml`: Multi-container stack orchestrating the Streamlit Dashboard (port 8501) and FastAPI microservice (port 8000) with shared volumes.
+
 
 ---
 
