@@ -214,7 +214,8 @@ tabs = st.tabs([
     "🧪 Evaluation & Benchmarks",
     "📜 Audit Trail & History",
     "📁 Document & Provenance Inspector",
-    "⚡ Enterprise API & System Status"
+    "⚡ Enterprise API & System Status",
+    "🛡️ Forensic Accounting & Benford Audit"
 ])
 
 
@@ -316,6 +317,52 @@ with tabs[0]:
         # Conflict Banner
         if state.reconciliation_summary and state.reconciliation_summary.has_blocking_conflicts:
             st.warning(f"⚠️ **Cross-Document Discrepancy Detected:** Found {state.reconciliation_summary.discrepancy_count} conflicting claims between sources! Switch to the **'Human-in-the-Loop Review Center'** tab to review resolution options.")
+
+        # Deliverables & Audit Packs
+        st.markdown("---")
+        st.subheader("📦 Generated Deliverables & Audit Packs")
+        deliv_c1, deliv_c2, deliv_c3, deliv_c4 = st.columns(4)
+        
+        with deliv_c1:
+            if state.report_markdown_path and Path(state.report_markdown_path).exists():
+                with open(state.report_markdown_path, "r", encoding="utf-8") as f:
+                    st.download_button(
+                        label="📄 Markdown Report",
+                        data=f.read(),
+                        file_name=Path(state.report_markdown_path).name,
+                        mime="text/markdown",
+                        use_container_width=True
+                    )
+        with deliv_c2:
+            if state.report_pdf_path and Path(state.report_pdf_path).exists():
+                with open(state.report_pdf_path, "rb") as f:
+                    st.download_button(
+                        label="📑 PDF Document",
+                        data=f.read(),
+                        file_name=Path(state.report_pdf_path).name,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+        with deliv_c3:
+            if state.report_html_path and Path(state.report_html_path).exists():
+                with open(state.report_html_path, "r", encoding="utf-8") as f:
+                    st.download_button(
+                        label="🌐 Interactive HTML Report",
+                        data=f.read(),
+                        file_name=Path(state.report_html_path).name,
+                        mime="text/html",
+                        use_container_width=True
+                    )
+        with deliv_c4:
+            if state.audit_pack_json_path and Path(state.audit_pack_json_path).exists():
+                with open(state.audit_pack_json_path, "r", encoding="utf-8") as f:
+                    st.download_button(
+                        label="🔒 JSON Audit Pack",
+                        data=f.read(),
+                        file_name=Path(state.audit_pack_json_path).name,
+                        mime="application/json",
+                        use_container_width=True
+                    )
 
 # ==========================================
 # TAB 2: ANALYTICAL FINDINGS & VISUALS
@@ -910,4 +957,96 @@ with tabs[10]:
              }'
         ```
         """)
+
+# ==========================================
+# TAB 12: FORENSIC ACCOUNTING & BENFORD AUDIT
+# ==========================================
+with tabs[11]:
+    st.subheader("🛡️ Forensic Accounting & Benford's Law Anomaly Engine")
+    st.caption("Empirical leading-digit distribution analysis, Mean Absolute Deviation (MAD), and statistical outlier audit.")
+    
+    from src.tools.forensic_auditor import ForensicAuditor
+    
+    forensic_mode = st.radio(
+        "Audit Target:",
+        ["Audit Staged / Extracted Investigation Data", "Upload CSV/Excel Spreadsheet", "Manual Number Entry"],
+        horizontal=True
+    )
+    
+    numbers_to_audit = []
+    
+    if forensic_mode == "Audit Staged / Extracted Investigation Data":
+        state = st.session_state.last_state
+        if state and state.segment_analysis:
+            for s in state.segment_analysis.segments:
+                numbers_to_audit.extend([s.period_1_value, s.period_2_value, abs(s.absolute_change)])
+            raw_claims = state.extracted_data.get("source_claims", [])
+            for sc in raw_claims:
+                if isinstance(sc, dict) and "reported_value" in sc and isinstance(sc["reported_value"], (int, float)):
+                    numbers_to_audit.append(float(sc["reported_value"]))
+            st.success(f"Extracted {len(numbers_to_audit)} numerical data points from latest investigation.")
+        else:
+            st.info("No active investigation numbers found. Loading sample financial figures for audit demonstration...")
+            numbers_to_audit = [500.0, 420.0, 300.0, 280.0, 200.0, 200.0, 1000.0, 900.0, 80.0, 20.0, 150.0, 120.0, 310.0, 450.0]
+            
+    elif forensic_mode == "Upload CSV/Excel Spreadsheet":
+        up_file = st.file_uploader("Upload spreadsheet for forensic scan", type=["csv", "xlsx"])
+        if up_file:
+            if up_file.name.endswith(".csv"):
+                df_up = pd.read_csv(up_file)
+            else:
+                df_up = pd.read_excel(up_file)
+            st.dataframe(df_up.head(5), use_container_width=True)
+            report = ForensicAuditor.audit_tabular_data(df_up)
+            st.subheader(f"Tabular Forensic Risk Index: {report.overall_risk_score} / 1.0")
+            st.write(report.audit_summary)
+            num_cols = df_up.select_dtypes(include="number").columns
+            for col in num_cols:
+                numbers_to_audit.extend([float(v) for v in df_up[col].dropna() if abs(v) > 1e-4])
+                
+    elif forensic_mode == "Manual Number Entry":
+        manual_txt = st.text_area(
+            "Enter numbers separated by spaces or commas:",
+            "500, 420, 300, 280, 200, 200, 1000, 900, 80, 20, 150, 120, 310, 450"
+        )
+        try:
+            numbers_to_audit = [float(x.strip()) for x in manual_txt.replace(",", " ").split() if x.strip()]
+        except ValueError:
+            st.error("Invalid number input.")
+
+    if numbers_to_audit:
+        res = ForensicAuditor.test_benford_first_digit(numbers_to_audit)
+        
+        f_c1, f_c2, f_c3, f_c4 = st.columns(4)
+        with f_c1:
+            st.metric("Values Audited (N)", res.sample_size)
+        with f_c2:
+            st.metric("Conformity Status", res.conformity_status)
+        with f_c3:
+            st.metric("Mean Abs Deviation (MAD)", f"{res.mean_absolute_deviation:.4f}", help="Nigrini threshold: < 0.015 for acceptable conformity")
+        with f_c4:
+            st.metric("Chi-Square Stat", f"{res.chi_square_stat:.2f}", f"p-val ≈ {res.p_value_approx}")
+            
+        st.markdown(f"**Interpretation:** {res.interpretation}")
+        
+        # Display comparison table and chart
+        if res.digit_distributions:
+            chart_df = pd.DataFrame([
+                {
+                    "Digit": d.digit,
+                    "Observed Frequency": d.observed_frequency,
+                    "Expected (Benford)": d.expected_frequency,
+                    "Difference": d.frequency_difference,
+                    "Z-Score": d.z_score
+                }
+                for d in res.digit_distributions
+            ])
+            
+            c_left, c_right = st.columns([1, 1])
+            with c_left:
+                st.markdown("##### Leading Digit Distribution Table")
+                st.dataframe(chart_df, use_container_width=True, hide_index=True)
+            with c_right:
+                st.markdown("##### Empirical vs. Theoretical Benford Distribution")
+                st.bar_chart(chart_df.set_index("Digit")[["Observed Frequency", "Expected (Benford)"]])
 

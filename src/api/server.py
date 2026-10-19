@@ -58,6 +58,13 @@ class HitlDecisionRequest(BaseModel):
     override_value: Optional[float] = None
     notes: Optional[str] = "Decision rendered via REST API."
 
+class BenfordAuditRequest(BaseModel):
+    numbers: list[float] = Field(description="List of raw numeric figures to test for Benford logarithmic compliance.")
+
+class HallucinationGuardRequest(BaseModel):
+    claims: list[str] = Field(description="List of natural language claims or proposition strings to audit.")
+    context_text: Optional[str] = Field(default="", description="Retrieved evidence context text.")
+
 # ----------------- Endpoints -----------------
 
 @app.get("/health", tags=["System"])
@@ -66,10 +73,12 @@ def health_check():
     return {
         "status": "healthy",
         "service": "autonomous-document-intelligence",
-        "version": "3.0.0",
+        "version": "4.0.0",
         "active_db": str(settings.db_path),
         "deterministic_math": True,
-        "hitl_enabled": True
+        "hitl_enabled": True,
+        "forensics_enabled": True,
+        "hallucination_guard": True
     }
 
 @app.post("/api/v1/investigate", tags=["Investigation"])
@@ -110,11 +119,51 @@ def run_investigation(req: InvestigationRequest):
             "knowledge_graph": state.knowledge_graph_summary,
             "scenario_results": state.scenario_results,
             "debate_session": state.debate_session,
+            "forensic_audit": state.forensic_audit,
+            "hallucination_guard_audit": state.hallucination_guard_audit,
             "report_markdown_path": state.report_markdown_path,
-            "report_pdf_path": state.report_pdf_path
+            "report_pdf_path": state.report_pdf_path,
+            "report_html_path": state.report_html_path,
+            "audit_pack_json_path": state.audit_pack_json_path
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/forensics/benford", tags=["Forensic Accounting"])
+def audit_benford(req: BenfordAuditRequest):
+    """
+    Executes Benford's Law First-Digit statistical analysis on an array of numbers.
+    Computes MAD, Chi-Square, p-value, and checks for accounting irregularities.
+    """
+    from src.tools.forensic_auditor import ForensicAuditor
+    result = ForensicAuditor.test_benford_first_digit(req.numbers)
+    return result.model_dump()
+
+@app.post("/api/v1/verification/hallucination-guard", tags=["Verification"])
+def audit_hallucination_guard(req: HallucinationGuardRequest):
+    """
+    Audits propositions against provided context text to detect hallucinated statements.
+    """
+    from src.verification.hallucination_guard import HallucinationGuard
+    from src.ingestion.metadata import ExtractedChunk, SourceLocation, FileType
+
+    mock_chunk = ExtractedChunk(
+        chunk_id="api_context",
+        document_id="api_input",
+        file_name="api_request_context",
+        content=req.context_text or "",
+        content_type="text",
+        location=SourceLocation(
+            document_id="api_input",
+            file_name="api_request_context",
+            file_type=FileType.PDF,
+            page_number=1
+        )
+    )
+
+    guard = HallucinationGuard()
+    res = guard.audit_claims(claims=req.claims, evidence_chunks=[mock_chunk])
+    return res.model_dump()
 
 @app.post("/api/v1/scenarios/simulate", tags=["Analytics & Scenarios"])
 def simulate_scenarios(req: SimulationRequest):
@@ -231,5 +280,12 @@ def download_report(report_name: str):
     if not target_path.exists():
         raise HTTPException(status_code=404, detail="Requested report deliverable not found.")
     
-    media_type = "application/pdf" if target_path.suffix == ".pdf" else "text/markdown"
+    media_types = {
+        ".pdf": "application/pdf",
+        ".html": "text/html",
+        ".json": "application/json",
+        ".md": "text/markdown",
+        ".txt": "text/plain"
+    }
+    media_type = media_types.get(target_path.suffix.lower(), "application/octet-stream")
     return FileResponse(path=target_path, media_type=media_type, filename=report_name)

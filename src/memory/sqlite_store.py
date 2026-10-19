@@ -229,3 +229,11 @@ class SQLiteStore:
         with self._get_connection() as conn:
             rows = conn.execute("SELECT * FROM evidence WHERE task_id = ?", (task_id,)).fetchall()
             return [dict(r) for r in rows]
+
+    def list_recent_tasks(self, limit: int = 10) -> list[dict[str, Any]]:
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT task_id, user_goal as goal, task_status as status, created_at, completed_at FROM tasks ORDER BY created_at DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]

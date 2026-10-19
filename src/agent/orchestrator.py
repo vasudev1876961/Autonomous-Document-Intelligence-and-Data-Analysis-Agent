@@ -286,7 +286,7 @@ class AgentOrchestrator:
         }
 
     def _node_verify_findings(self, state: AgentState) -> dict[str, Any]:
-        """Node 8: Independent Verification Pipeline (Math, Citation, Consistency)."""
+        """Node 8: Independent Verification Pipeline (Math, Citation, Consistency, Hallucination Guard, Forensic)."""
         verifier = VerificationPipeline(state.document_manifest, state.raw_chunks)
         citations_to_audit = state.extracted_data.get("citations_to_audit", [])
         
@@ -296,8 +296,44 @@ class AgentOrchestrator:
             citations_to_check=citations_to_audit,
             unit_pairs=[("₹ lakh", "₹ lakh")]
         )
-        self.store.log_audit(state.task_id, 8, "VERIFY_FINDINGS", audit_report.summary_verdict)
-        return {"verification_audit": audit_report}
+
+        # Autonomous Hallucination Guard
+        from src.verification.hallucination_guard import HallucinationGuard
+        from src.tools.forensic_auditor import ForensicAuditor
+        
+        guard = HallucinationGuard(faithfulness_threshold=0.90)
+        all_claims = state.observed_facts + state.supported_interpretations
+        hg_res = guard.audit_claims(
+            claims=all_claims,
+            evidence_chunks=state.retrieved_evidence,
+            period_result=state.period_comparison,
+            segment_summary=state.segment_analysis
+        )
+
+        # Forensic Benford Audit on extracted numbers
+        extracted_nums: list[float] = []
+        raw_claims = state.extracted_data.get("source_claims", [])
+        for sc in raw_claims:
+            if isinstance(sc, dict) and "reported_value" in sc and isinstance(sc["reported_value"], (int, float)):
+                extracted_nums.append(float(sc["reported_value"]))
+        if state.segment_analysis:
+            for s in state.segment_analysis.segments:
+                extracted_nums.extend([s.period_1_value, s.period_2_value, s.absolute_change])
+
+        forensic_res = None
+        if extracted_nums:
+            benford = ForensicAuditor.test_benford_first_digit(extracted_nums)
+            forensic_res = benford.model_dump()
+
+        self.store.log_audit(
+            state.task_id, 8, "VERIFY_FINDINGS",
+            f"{audit_report.summary_verdict} (Faithfulness: {hg_res.faithfulness_score*100:.1f}%)"
+        )
+        return {
+            "verification_audit": audit_report,
+            "hallucination_guard_audit": hg_res.model_dump(),
+            "forensic_audit": forensic_res
+        }
 
     def _node_build_knowledge_graph(self, state: AgentState) -> dict[str, Any]:
         """Node 8b: Autonomous Knowledge Graph & Causal Network Construction."""
@@ -401,7 +437,7 @@ class AgentOrchestrator:
         return {"chart_paths": chart_paths}
 
     def _node_generate_report(self, state: AgentState) -> dict[str, Any]:
-        """Node 10: Analytical Report Generation and Export."""
+        """Node 10: Analytical Report Generation and Export (MD, PDF, HTML, Audit Pack JSON)."""
         # Mark plan steps completed
         updated_plan = []
         for step in state.plan:
@@ -413,20 +449,29 @@ class AgentOrchestrator:
         report_md = ReportBuilder.build_markdown_report(state)
         md_file = self.exporter.export_markdown(report_md, filename=f"report_{state.task_id}.md")
         pdf_file = self.exporter.export_pdf("Autonomous Document Intelligence Report", report_md, filename=f"report_{state.task_id}.pdf")
+        html_file = self.exporter.export_interactive_html("Autonomous Document Intelligence Report", report_md, filename=f"report_{state.task_id}.html")
+        audit_pack = self.exporter.export_audit_pack(state, filename=f"audit_pack_{state.task_id}.json")
 
         state.report_markdown_path = str(md_file)
         state.report_pdf_path = str(pdf_file)
+        state.report_html_path = str(html_file)
+        state.audit_pack_json_path = str(audit_pack)
         state.final_report_text = report_md
 
         # Evaluate completion
         eval_res = CompletionEvaluator.evaluate(state)
         self.store.update_task_status(state.task_id, "completed", eval_res.completion_summary)
-        self.store.log_audit(state.task_id, 10, "GENERATE_REPORT", f"Exported report to {md_file.name} and {pdf_file.name}")
+        self.store.log_audit(
+            state.task_id, 10, "GENERATE_REPORT",
+            f"Exported deliverables: {md_file.name}, {pdf_file.name}, {html_file.name}, {audit_pack.name}"
+        )
 
         return {
             "plan": updated_plan,
             "report_markdown_path": str(md_file),
             "report_pdf_path": str(pdf_file),
+            "report_html_path": str(html_file),
+            "audit_pack_json_path": str(audit_pack),
             "final_report_text": report_md,
             "is_completed": eval_res.is_completed
         }
