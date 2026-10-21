@@ -18,11 +18,20 @@ def test_cli_status(capsys):
 
 def test_cli_forensic_numbers(capsys):
     numbers = [100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
-    args = MockArgs(file=None, numbers=numbers)
+    args = MockArgs(file=None, numbers=numbers, second_digit=False)
     cmd_forensic(args)
     captured = capsys.readouterr()
     assert "FORENSIC ACCOUNTING & BENFORD'S LAW AUDIT" in captured.out
     assert "Sample Size" in captured.out
+
+def test_cli_forensic_second_digit(capsys):
+    numbers = [105, 115, 125, 135, 145, 155, 165, 175, 185, 195, 205, 215]
+    args = MockArgs(file=None, numbers=numbers, second_digit=True)
+    cmd_forensic(args)
+    captured = capsys.readouterr()
+    assert "FORENSIC ACCOUNTING & BENFORD'S LAW AUDIT" in captured.out
+    assert "Digit Distribution (0..9)" in captured.out
+
 
 def test_cli_scenario(capsys):
     args = MockArgs(p1=1000.0, p2=900.0, target=1000.0)

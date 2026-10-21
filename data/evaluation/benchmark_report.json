@@ -1,6 +1,6 @@
 {
   "benchmark_name": "Autonomous Document Intelligence Benchmark Suite (ADI-Bench v1.0)",
-  "run_timestamp": "2026-10-14 18:09:42 UTC",
+  "run_timestamp": "2026-10-21 15:18:58 UTC",
   "scenario_scores": [
     {
       "scenario_id": "scenario_1_baseline",
@@ -54,7 +54,7 @@
     "source_coverage": 100.0,
     "hallucination_rate": 0.0,
     "recovery_success_rate": 100.0,
-    "average_latency_seconds": 4.13
+    "average_latency_seconds": 1.98
   },
   "ablation_results": [
     {

@@ -53,6 +53,16 @@ def test_api_benford_audit():
     assert "mean_absolute_deviation" in data
     assert "conformity_status" in data
 
+def test_api_benford_second_digit_audit():
+    payload = {"numbers": [105, 115, 125, 135, 145, 155, 165, 175, 185, 195, 205, 215]}
+    response = client.post("/api/v1/forensics/benford-second-digit", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sample_size"] == 12
+    assert len(data["digit_distributions"]) == 10
+    assert "mean_absolute_deviation" in data
+
+
 def test_api_hallucination_guard():
     payload = {
         "claims": ["Revenue was 1000 lakh in Q1.", "Net profits doubled to 8888 lakh."],

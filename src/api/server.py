@@ -19,7 +19,7 @@ from src.evaluation.benchmark_runner import BenchmarkRunner
 
 app = FastAPI(
     title="Autonomous Document Intelligence & Data Analysis Agent API",
-    version="3.0.0",
+    version="4.0.0",
     description="Enterprise REST API for evidence-driven multi-format document analysis, verified calculations, and HITL governance."
 )
 
@@ -138,6 +138,17 @@ def audit_benford(req: BenfordAuditRequest):
     from src.tools.forensic_auditor import ForensicAuditor
     result = ForensicAuditor.test_benford_first_digit(req.numbers)
     return result.model_dump()
+
+@app.post("/api/v1/forensics/benford-second-digit", tags=["Forensic Accounting"])
+def audit_benford_second_digit(req: BenfordAuditRequest):
+    """
+    Executes Benford's Law Second-Digit statistical analysis on an array of numbers (digits 0..9).
+    Computes Nigrini second-digit MAD, Chi-Square, and distribution conformity.
+    """
+    from src.tools.forensic_auditor import ForensicAuditor
+    result = ForensicAuditor.test_benford_second_digit(req.numbers)
+    return result.model_dump()
+
 
 @app.post("/api/v1/verification/hallucination-guard", tags=["Verification"])
 def audit_hallucination_guard(req: HallucinationGuardRequest):

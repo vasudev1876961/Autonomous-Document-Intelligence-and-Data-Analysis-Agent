@@ -130,7 +130,8 @@ def cmd_forensic(args):
 
         report = ForensicAuditor.audit_tabular_data(df)
         print(f"  • Values Audited:      {report.total_numbers_audited}")
-        print(f"  • Benford Conformity:  {report.benford_first_digit.conformity_status if report.benford_first_digit else 'N/A'}")
+        print(f"  • Benford 1st-Digit:   {report.benford_first_digit.conformity_status if report.benford_first_digit else 'N/A'}")
+        print(f"  • Benford 2nd-Digit:   {report.benford_second_digit.conformity_status if report.benford_second_digit else 'N/A'}")
         print(f"  • Mean Abs Deviation:  {report.benford_first_digit.mean_absolute_deviation if report.benford_first_digit else 'N/A'}")
         print(f"  • Anomalies Detected:  {len(report.anomalies_detected)}")
         print(f"  • Repeated Values:     {report.repeated_values_count}")
@@ -140,12 +141,18 @@ def cmd_forensic(args):
 
     elif args.numbers:
         nums = [float(x) for x in args.numbers]
-        res = ForensicAuditor.test_benford_first_digit(nums)
+        if getattr(args, "second_digit", False):
+            res = ForensicAuditor.test_benford_second_digit(nums)
+            digit_range = "(0..9)"
+        else:
+            res = ForensicAuditor.test_benford_first_digit(nums)
+            digit_range = "(1..9)"
+
         print(f"  • Sample Size:         {res.sample_size}")
         print(f"  • MAD Conformity:      {res.conformity_status} (MAD: {res.mean_absolute_deviation:.4f})")
         print(f"  • Chi-Square Stat:     {res.chi_square_stat} (p-value: {res.p_value_approx})")
         print(f"  • Suspicious Flag:     {res.is_suspicious}")
-        print("\n  • Digit Distribution (1..9):")
+        print(f"\n  • Digit Distribution {digit_range}:")
         print("    Digit | Observed | Expected | Diff   | Z-Score")
         print("    ------+----------+----------+--------+--------")
         for d in res.digit_distributions:
@@ -294,7 +301,9 @@ def main():
     p_forensic = subparsers.add_parser("forensic", help="Run Benford's Law and anomaly detection")
     p_forensic.add_argument("--file", help="Path to CSV or Excel file to audit")
     p_forensic.add_argument("--numbers", nargs="*", help="List of numbers to test")
+    p_forensic.add_argument("--second-digit", action="store_true", help="Run Benford's Law Second-Digit test (0..9)")
     p_forensic.set_defaults(func=cmd_forensic)
+
 
     # debate
     p_debate = subparsers.add_parser("debate", help="Run 4-agent red-team debate council")

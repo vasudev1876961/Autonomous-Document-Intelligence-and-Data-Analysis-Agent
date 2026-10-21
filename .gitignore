@@ -32,7 +32,10 @@ outputs/charts/*.svg
 .DS_Store
 Thumbs.db
 
-# Test & coverage
+# Test & coverage & logs
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+*.log
+

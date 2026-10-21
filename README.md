@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v4.0.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-12--Module%20UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph%20StateGraph-1C3C3C)](https://github.com/langchain-ai/langgraph)
-[![Tests Passing](https://img.shields.io/badge/Tests-51%2F51%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
+[![Tests Passing](https://img.shields.io/badge/Tests-54%2F54%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
 [![Docker Ready](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -219,6 +219,7 @@ Interactive Documentation:
 | `GET` | `/health` | System health check, active DB path, and engine flags |
 | `POST` | `/api/v1/investigate` | Autonomous multi-node document investigation |
 | `POST` | `/api/v1/forensics/benford` | Benford first-digit MAD and Chi-Square analysis |
+| `POST` | `/api/v1/forensics/benford-second-digit` | Benford second-digit (0..9) MAD and distribution audit |
 | `POST` | `/api/v1/verification/hallucination-guard` | Real-time claim grounding & faithfulness audit |
 | `POST` | `/api/v1/scenarios/simulate` | What-if simulation, sensitivity curve & Monte Carlo |
 | `POST` | `/api/v1/debate` | Multi-Agent Red-Team Debate Council |
@@ -352,12 +353,12 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │   │   ├── scenario_modeling.py   # Counterfactual, sensitivity & Monte Carlo
 │   │   └── source_reconciliation.py # Cross-document discrepancy reconciler
 │   └── verification/
-│       ├── calculation_verifier.py# Independent math formula recomputation
-│       ├── citation_checker.py    # SHA-256 citation grounding checker
-│       ├── consistency_checker.py # Contradiction & unit verification
+│       ├── calculation_checks.py  # Independent math formula recomputation
+│       ├── citation_checks.py     # SHA-256 citation grounding checker
+│       ├── consistency_checks.py  # Contradiction & unit verification
 │       ├── hallucination_guard.py # Real-time proposition reflection guardrail
 │       └── verifier_pipeline.py   # Complete verification audit pipeline
-├── tests/                         # 51 comprehensive unit and integration tests
+├── tests/                         # 54 comprehensive unit and integration tests
 ├── app.py                         # Streamlit 12-module Executive Dashboard
 ├── cli.py                         # Unified enterprise command-line tool
 ├── Dockerfile                     # Production container specification
@@ -370,7 +371,7 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 
 ## 🧪 Testing & Validation
 
-The test suite contains **51 automated unit and integration tests** verifying mathematical proofs, forensic calculations, knowledge graph construction, multi-agent debates, and REST endpoints.
+The test suite contains **54 automated unit and integration tests** verifying mathematical proofs, forensic calculations, knowledge graph construction, multi-agent debates, and REST endpoints.
 
 Run the full test suite with:
 
