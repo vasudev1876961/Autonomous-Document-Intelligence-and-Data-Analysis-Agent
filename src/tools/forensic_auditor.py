@@ -38,6 +38,7 @@ class ForensicAuditReport(BaseModel):
     total_numbers_audited: int
     benford_first_digit: Optional[BenfordAnalysisResult] = None
     benford_second_digit: Optional[BenfordAnalysisResult] = None
+    benford_first_two_digits: Optional[BenfordAnalysisResult] = None
     anomalies_detected: list[NumberAnomaly] = Field(default_factory=list)
     repeated_values_count: int = 0
     round_numbers_percentage: float = 0.0
@@ -58,6 +59,12 @@ class ForensicAuditor:
         for d in range(0, 10)
     }
 
+    # Theoretical Benford distribution for first-two digits 10..99 (Nigrini 2012)
+    BENFORD_P12 = {
+        d: math.log10(1.0 + 1.0 / d)
+        for d in range(10, 100)
+    }
+
     @staticmethod
     def extract_leading_digit(val: float | int) -> Optional[int]:
         """Extracts the first non-zero leading digit of a number."""
@@ -68,6 +75,24 @@ class ForensicAuditor:
             s = f"{num:.10e}".split("e")[0].replace(".", "").lstrip("0")
             if s:
                 return int(s[0])
+            return None
+        except Exception:
+            return None
+
+    @staticmethod
+    def extract_first_two_digits(val: float | int) -> Optional[int]:
+        """Extracts the first two non-zero significant digits (10..99)."""
+        try:
+            num = abs(float(val))
+            if num == 0 or math.isnan(num) or math.isinf(num):
+                return None
+            if float(val).is_integer() and abs(float(val)) < 10:
+                return None
+            raw_str = f"{num:f}".replace(".", "").lstrip("0")
+            if len(raw_str) >= 2:
+                val_two = int(raw_str[:2])
+                if 10 <= val_two <= 99:
+                    return val_two
             return None
         except Exception:
             return None
@@ -314,6 +339,117 @@ class ForensicAuditor:
         )
 
     @classmethod
+    def test_benford_first_two_digits(cls, numbers: list[float | int]) -> BenfordAnalysisResult:
+        """
+        Executes Benford's Law First-Two Digits Analysis across a sequence of numbers (digits 10..99).
+        Applies Nigrini's First-Two Digits MAD thresholds and Pearson Chi-Square test (89 df).
+        Industry-standard gold standard test for financial fraud and cluster detection.
+        """
+        valid_digits: list[int] = []
+        for n in numbers:
+            d = cls.extract_first_two_digits(n)
+            if d is not None and 10 <= d <= 99:
+                valid_digits.append(d)
+
+        N = len(valid_digits)
+        if N < 20:
+            return BenfordAnalysisResult(
+                sample_size=N,
+                chi_square_stat=0.0,
+                p_value_approx=1.0,
+                mean_absolute_deviation=0.0,
+                conformity_status="Insufficient Data (N < 20)",
+                is_suspicious=False,
+                digit_distributions=[],
+                interpretation="Dataset size is too small to reliably establish Benford first-two digits compliance."
+            )
+
+        counts = {d: 0 for d in range(10, 100)}
+        for d in valid_digits:
+            counts[d] += 1
+
+        digit_comparisons: list[BenfordDigitComparison] = []
+        chi_square = 0.0
+        mad_sum = 0.0
+
+        for d in range(10, 100):
+            obs_cnt = counts[d]
+            obs_freq = obs_cnt / N
+            exp_freq = cls.BENFORD_P12[d]
+            exp_cnt = N * exp_freq
+
+            diff = obs_freq - exp_freq
+            mad_sum += abs(diff)
+
+            if exp_cnt > 0:
+                chi_square += ((obs_cnt - exp_cnt) ** 2) / exp_cnt
+
+            variance = (exp_freq * (1.0 - exp_freq)) / N
+            std_err = math.sqrt(variance) if variance > 0 else 1e-6
+            z_score = round(diff / std_err, 3)
+
+            digit_comparisons.append(BenfordDigitComparison(
+                digit=d,
+                observed_count=obs_cnt,
+                observed_frequency=round(obs_freq, 5),
+                expected_frequency=round(exp_freq, 5),
+                frequency_difference=round(diff, 5),
+                z_score=z_score
+            ))
+
+        mad = round(mad_sum / 90.0, 6)
+        chi_square = round(chi_square, 3)
+
+        # Approximate p-value for df=89
+        if chi_square <= 0:
+            p_val = 1.0
+        elif chi_square > 140.0:
+            p_val = 0.0001
+        elif chi_square > 122.9:
+            p_val = 0.01
+        elif chi_square > 111.9:
+            p_val = 0.05
+        else:
+            p_val = 0.20
+
+        # Nigrini (2012) MAD Conformity Thresholds for First-Two Digits (10..99)
+        if mad <= 0.0012:
+            conformity = "Close Conformity"
+            suspicious = False
+        elif mad <= 0.0018:
+            conformity = "Acceptable Conformity"
+            suspicious = False
+        elif mad <= 0.0022:
+            conformity = "Marginally Acceptable"
+            suspicious = False
+        else:
+            conformity = "Non-Conforming"
+            suspicious = True
+
+        if suspicious:
+            interp = (
+                f"Data exhibits non-conformity with Benford's Law first-two digits test (MAD = {mad:.5f} > 0.0022, Chi-Sq = {chi_square}). "
+                f"Distribution of first-two digit pairs (10-99) deviates significantly from natural logarithmic patterns. "
+                f"Possible clustering or threshold-avoidance manipulation detected."
+            )
+        else:
+            interp = (
+                f"Data conforms to Benford's Law first-two digits distribution (MAD = {mad:.5f}, Status: {conformity}). "
+                f"Digit pairs exhibit natural logarithmic progression."
+            )
+
+        return BenfordAnalysisResult(
+            sample_size=N,
+            chi_square_stat=chi_square,
+            p_value_approx=p_val,
+            mean_absolute_deviation=mad,
+            conformity_status=conformity,
+            is_suspicious=suspicious,
+            digit_distributions=digit_comparisons,
+            interpretation=interp
+        )
+
+    @classmethod
     def audit_tabular_data(
         cls,
         df: pd.DataFrame,
@@ -339,9 +475,10 @@ class ForensicAuditor:
                 audit_summary="No valid numeric columns found in dataframe for forensic audit."
             )
 
-        # 1. Benford First-Digit and Second-Digit Analysis
+        # 1. Benford First-Digit, Second-Digit, and First-Two Digits Analysis
         benford_res = cls.test_benford_first_digit(all_numbers)
         benford_second_res = cls.test_benford_second_digit(all_numbers)
+        benford_first_two_res = cls.test_benford_first_two_digits(all_numbers)
 
         # 2. Outlier and Anomaly Detection
         anomalies: list[NumberAnomaly] = []
@@ -396,12 +533,17 @@ class ForensicAuditor:
         # Calculate composite risk score (0.0 to 1.0)
         risk = 0.0
         if benford_res.is_suspicious:
-            risk += 0.35
+            risk += 0.30
         elif benford_res.conformity_status == "Marginally Acceptable":
-            risk += 0.15
+            risk += 0.10
 
         if benford_second_res.is_suspicious:
-            risk += 0.20
+            risk += 0.15
+
+        if benford_first_two_res.is_suspicious:
+            risk += 0.25
+        elif benford_first_two_res.conformity_status == "Marginally Acceptable":
+            risk += 0.10
 
         if len(unique_anomalies) > 0:
             risk += min(0.30, len(unique_anomalies) * 0.05)
@@ -417,6 +559,7 @@ class ForensicAuditor:
             f"Audited {total_cnt} values across {len(numeric_cols)} numeric columns.",
             f"Benford 1st-Digit: {benford_res.conformity_status} (MAD: {benford_res.mean_absolute_deviation:.4f}, Chi-Sq: {benford_res.chi_square_stat}).",
             f"Benford 2nd-Digit: {benford_second_res.conformity_status} (MAD: {benford_second_res.mean_absolute_deviation:.4f}, Chi-Sq: {benford_second_res.chi_square_stat}).",
+            f"Benford 1st-Two Digits: {benford_first_two_res.conformity_status} (MAD: {benford_first_two_res.mean_absolute_deviation:.5f}, Chi-Sq: {benford_first_two_res.chi_square_stat}).",
             f"Detected {len(unique_anomalies)} statistical anomalies.",
             f"Round Numbers: {round_pct}% of values. Repeated occurrences: {repeated_cnt}.",
             f"Composite Forensic Risk Index: {risk_score:.2f} ({'ELEVATED RISK' if risk_score >= 0.5 else 'LOW RISK'})."
@@ -426,6 +569,7 @@ class ForensicAuditor:
             total_numbers_audited=total_cnt,
             benford_first_digit=benford_res,
             benford_second_digit=benford_second_res,
+            benford_first_two_digits=benford_first_two_res,
             anomalies_detected=unique_anomalies,
             repeated_values_count=repeated_cnt,
             round_numbers_percentage=round_pct,

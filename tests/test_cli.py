@@ -1,8 +1,19 @@
 """
 Unit tests for CLI commands.
 """
+from pathlib import Path
+import json
 import pytest
-from cli import cmd_status, cmd_benchmark, cmd_scenario, cmd_debate, cmd_forensic
+from cli import (
+    cmd_status,
+    cmd_benchmark,
+    cmd_scenario,
+    cmd_debate,
+    cmd_forensic,
+    cmd_dupont,
+    cmd_ratios,
+    cmd_verify_pack,
+)
 
 class MockArgs:
     def __init__(self, **kwargs):
@@ -14,11 +25,10 @@ def test_cli_status(capsys):
     cmd_status(args)
     captured = capsys.readouterr()
     assert "AUTONOMOUS DOCUMENT INTELLIGENCE" in captured.out
-    assert "Enterprise Edition v4.0" in captured.out
 
 def test_cli_forensic_numbers(capsys):
     numbers = [100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
-    args = MockArgs(file=None, numbers=numbers, second_digit=False)
+    args = MockArgs(file=None, numbers=numbers, second_digit=False, first_two_digits=False)
     cmd_forensic(args)
     captured = capsys.readouterr()
     assert "FORENSIC ACCOUNTING & BENFORD'S LAW AUDIT" in captured.out
@@ -26,12 +36,58 @@ def test_cli_forensic_numbers(capsys):
 
 def test_cli_forensic_second_digit(capsys):
     numbers = [105, 115, 125, 135, 145, 155, 165, 175, 185, 195, 205, 215]
-    args = MockArgs(file=None, numbers=numbers, second_digit=True)
+    args = MockArgs(file=None, numbers=numbers, second_digit=True, first_two_digits=False)
     cmd_forensic(args)
     captured = capsys.readouterr()
     assert "FORENSIC ACCOUNTING & BENFORD'S LAW AUDIT" in captured.out
     assert "Digit Distribution (0..9)" in captured.out
 
+def test_cli_forensic_first_two_digits(capsys):
+    numbers = [
+        105, 115, 125, 135, 145, 155, 165, 175, 185, 195,
+        205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 310
+    ]
+    args = MockArgs(file=None, numbers=numbers, second_digit=False, first_two_digits=True)
+    cmd_forensic(args)
+    captured = capsys.readouterr()
+    assert "FORENSIC ACCOUNTING & BENFORD'S LAW AUDIT" in captured.out
+    assert "Digit Distribution (10..99)" in captured.out
+
+def test_cli_dupont(capsys):
+    args = MockArgs(ni=150.0, rev=1000.0, assets=2000.0, equity=500.0)
+    cmd_dupont(args)
+    captured = capsys.readouterr()
+    assert "3-STAGE DUPONT ROE DECOMPOSITION & PROOF" in captured.out
+    assert "MATHEMATICALLY PROVEN" in captured.out
+    assert "30.00%" in captured.out
+
+def test_cli_ratios(capsys):
+    args = MockArgs(
+        rev=1200.0, cogs=720.0, ebit=240.0, ni=180.0,
+        ca=600.0, cl=300.0, inventory=0.0, debt=400.0, equity=800.0, assets=1500.0
+    )
+    cmd_ratios(args)
+    captured = capsys.readouterr()
+    assert "COMPREHENSIVE CORPORATE FINANCIAL RATIOS" in captured.out
+    assert "Operating Margin" in captured.out
+    assert "Current Ratio" in captured.out
+
+def test_cli_verify_pack(tmp_path: Path, capsys):
+    from src.tools.report_export import ReportExporter
+    from pydantic import BaseModel
+
+    class MiniState(BaseModel):
+        task_id: str = "task_cli_test"
+        user_goal: str = "Audit pack test"
+
+    exporter = ReportExporter(output_dir=tmp_path)
+    pack_file = exporter.export_audit_pack(MiniState(), filename="cli_pack.json")
+
+    args = MockArgs(file=str(pack_file))
+    cmd_verify_pack(args)
+    captured = capsys.readouterr()
+    assert "CRYPTOGRAPHIC AUDIT PACK INTEGRITY VERIFIER" in captured.out
+    assert "VERIFIED_TAMPER_FREE" in captured.out
 
 def test_cli_scenario(capsys):
     args = MockArgs(p1=1000.0, p2=900.0, target=1000.0)

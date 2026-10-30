@@ -24,7 +24,7 @@ def cmd_status(args):
 
     print("\n" + "=" * 65)
     print("🧠 AUTONOMOUS DOCUMENT INTELLIGENCE & DATA ANALYSIS AGENT")
-    print("   Enterprise Edition v4.0 • System Health & Status")
+    print("   Enterprise Edition v4.1 • System Health & Status")
     print("=" * 65)
     print(f"  • Base Directory:   {settings.base_dir}")
     print(f"  • SQLite Database:  {settings.db_path} (Exists: {settings.db_path.exists()})")
@@ -141,7 +141,10 @@ def cmd_forensic(args):
 
     elif args.numbers:
         nums = [float(x) for x in args.numbers]
-        if getattr(args, "second_digit", False):
+        if getattr(args, "first_two_digits", False):
+            res = ForensicAuditor.test_benford_first_two_digits(nums)
+            digit_range = "(10..99)"
+        elif getattr(args, "second_digit", False):
             res = ForensicAuditor.test_benford_second_digit(nums)
             digit_range = "(0..9)"
         else:
@@ -149,14 +152,16 @@ def cmd_forensic(args):
             digit_range = "(1..9)"
 
         print(f"  • Sample Size:         {res.sample_size}")
-        print(f"  • MAD Conformity:      {res.conformity_status} (MAD: {res.mean_absolute_deviation:.4f})")
+        print(f"  • MAD Conformity:      {res.conformity_status} (MAD: {res.mean_absolute_deviation:.5f})")
         print(f"  • Chi-Square Stat:     {res.chi_square_stat} (p-value: {res.p_value_approx})")
         print(f"  • Suspicious Flag:     {res.is_suspicious}")
         print(f"\n  • Digit Distribution {digit_range}:")
         print("    Digit | Observed | Expected | Diff   | Z-Score")
         print("    ------+----------+----------+--------+--------")
-        for d in res.digit_distributions:
-            print(f"      {d.digit}   |  {d.observed_frequency:.3f}   |  {d.expected_frequency:.3f}   | {d.frequency_difference:+.3f} | {d.z_score:+.2f}")
+        for d in res.digit_distributions[:25]:  # Preview first 25 bins
+            print(f"      {d.digit:<3} |  {d.observed_frequency:.4f}  |  {d.expected_frequency:.4f}  | {d.frequency_difference:+.4f} | {d.z_score:+.2f}")
+        if len(res.digit_distributions) > 25:
+            print(f"      ... [{len(res.digit_distributions) - 25} additional digit bins omitted for display]")
     else:
         print("❌ Error: Must provide either --file or --numbers.")
         sys.exit(1)
@@ -280,10 +285,93 @@ def cmd_benchmark(args):
     print(f"  • Recovery Success Rate (RSR):      {proposed.recovery_success_rate:.1f}% vs {baseline.recovery_success_rate:.1f}%")
     print("=" * 65 + "\n")
 
+def cmd_dupont(args):
+    """Executes 3-Stage DuPont Analysis with mathematical proof."""
+    from src.tools.numerical_analysis import NumericalAnalyzer
+    print("\n" + "=" * 65)
+    print("📐 3-STAGE DUPONT ROE DECOMPOSITION & PROOF")
+    print("=" * 65)
+    res = NumericalAnalyzer.calculate_dupont_analysis(
+        net_income=args.ni,
+        revenue=args.rev,
+        total_assets=args.assets,
+        total_equity=args.equity
+    )
+    print(f"  • Inputs: Net Income={res.net_income:,.1f}, Revenue={res.revenue:,.1f}, Assets={res.total_assets:,.1f}, Equity={res.total_equity:,.1f}")
+    print(f"  • Net Profit Margin:       {res.net_profit_margin_pct:.2f}%")
+    print(f"  • Asset Turnover:          {res.asset_turnover:.2f}x")
+    print(f"  • Equity Multiplier:       {res.equity_multiplier:.2f}x")
+    print(f"  • Direct ROE:              {res.roe_pct:.2f}%")
+    print(f"  • 3-Stage Product ROE:     {res.reconciled_product_roe_pct:.2f}%")
+    print(f"  • Deterministic Proof:     {'MATHEMATICALLY PROVEN (Delta <= 0.05%)' if res.is_mathematically_proven else 'DISCREPANCY DETECTED'}")
+    print(f"  • Driver Interpretation:   {res.driver_breakdown}")
+    print("=" * 65 + "\n")
+
+def cmd_ratios(args):
+    """Calculates audited liquidity, solvency, and profitability ratios."""
+    from src.tools.numerical_analysis import NumericalAnalyzer
+    print("\n" + "=" * 65)
+    print("📊 COMPREHENSIVE CORPORATE FINANCIAL RATIOS")
+    print("=" * 65)
+    res = NumericalAnalyzer.calculate_financial_ratios(
+        revenue=args.rev,
+        cost_of_goods_sold=args.cogs,
+        operating_income=args.ebit,
+        net_income=args.ni,
+        current_assets=args.ca,
+        current_liabilities=args.cl,
+        inventory=args.inventory or 0.0,
+        total_debt=args.debt,
+        total_equity=args.equity,
+        total_assets=args.assets
+    )
+    print("  • Profitability:")
+    if res.gross_margin_pct is not None:
+        print(f"      - Gross Margin:          {res.gross_margin_pct:.2f}%")
+    if res.operating_margin_pct is not None:
+        print(f"      - Operating Margin:      {res.operating_margin_pct:.2f}%")
+    if res.net_profit_margin_pct is not None:
+        print(f"      - Net Profit Margin:     {res.net_profit_margin_pct:.2f}%")
+    if res.return_on_assets_pct is not None:
+        print(f"      - Return on Assets (ROA):{res.return_on_assets_pct:.2f}%")
+
+    print("  • Liquidity & Solvency:")
+    if res.current_ratio is not None:
+        print(f"      - Current Ratio:         {res.current_ratio:.2f} [{res.liquidity_status.upper()}]")
+    if res.quick_ratio is not None:
+        print(f"      - Quick Ratio:           {res.quick_ratio:.2f}")
+    if res.debt_to_equity is not None:
+        print(f"      - Debt-to-Equity:        {res.debt_to_equity:.2f} [{res.solvency_status.upper()}]")
+    if res.asset_turnover is not None:
+        print(f"      - Asset Turnover:        {res.asset_turnover:.2f}x")
+    print("=" * 65 + "\n")
+
+def cmd_verify_pack(args):
+    """Verifies cryptographic SHA-256 digital signature of an audit pack."""
+    from src.tools.report_export import ReportExporter
+    print("\n" + "=" * 65)
+    print("🔐 CRYPTOGRAPHIC AUDIT PACK INTEGRITY VERIFIER")
+    print("=" * 65)
+    pack_path = Path(args.file)
+    print(f"  • Verifying File:     {pack_path.name}")
+    res = ReportExporter.verify_audit_pack_integrity(pack_path)
+    if res["is_valid"]:
+        print(f"  • Verification Status: [PASSED] {res['status']}")
+        print(f"  • Task ID:             {res.get('task_id')}")
+        print(f"  • SHA-256 Digest:      {res.get('recomputed_sha256')}")
+        print(f"  • Documents Verified:  {res.get('total_documents_manifested')}")
+    else:
+        print(f"  • Verification Status: [FAILED] {res.get('status')}")
+        print(f"  • Error:               {res.get('error')}")
+        if "expected_sha256" in res:
+            print(f"  • Expected Hash:       {res.get('expected_sha256')}")
+            print(f"  • Recomputed Hash:     {res.get('recomputed_sha256')}")
+    print("=" * 65 + "\n")
+
 def main():
     parser = argparse.ArgumentParser(
         prog="adida",
-        description="Autonomous Document Intelligence & Data Analysis Agent (ADIDA v4.0)"
+        description="Autonomous Document Intelligence & Data Analysis Agent (ADIDA v4.1)"
     )
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
@@ -302,8 +390,35 @@ def main():
     p_forensic.add_argument("--file", help="Path to CSV or Excel file to audit")
     p_forensic.add_argument("--numbers", nargs="*", help="List of numbers to test")
     p_forensic.add_argument("--second-digit", action="store_true", help="Run Benford's Law Second-Digit test (0..9)")
+    p_forensic.add_argument("--first-two-digits", action="store_true", help="Run Benford's Law First-Two Digits test (10..99)")
     p_forensic.set_defaults(func=cmd_forensic)
 
+    # dupont
+    p_dupont = subparsers.add_parser("dupont", help="Run 3-Stage DuPont ROE Decomposition and proof")
+    p_dupont.add_argument("--ni", type=float, required=True, help="Net Income")
+    p_dupont.add_argument("--rev", type=float, required=True, help="Consolidated Revenue")
+    p_dupont.add_argument("--assets", type=float, required=True, help="Total Assets")
+    p_dupont.add_argument("--equity", type=float, required=True, help="Total Equity")
+    p_dupont.set_defaults(func=cmd_dupont)
+
+    # ratios
+    p_ratios = subparsers.add_parser("ratios", help="Calculate corporate profitability and solvency ratios")
+    p_ratios.add_argument("--rev", type=float, required=True, help="Consolidated Revenue")
+    p_ratios.add_argument("--cogs", type=float, help="Cost of Goods Sold (COGS)")
+    p_ratios.add_argument("--ebit", type=float, help="Operating Income (EBIT)")
+    p_ratios.add_argument("--ni", type=float, help="Net Income")
+    p_ratios.add_argument("--ca", type=float, help="Current Assets")
+    p_ratios.add_argument("--cl", type=float, help="Current Liabilities")
+    p_ratios.add_argument("--inventory", type=float, default=0.0, help="Inventory value")
+    p_ratios.add_argument("--debt", type=float, help="Total Debt")
+    p_ratios.add_argument("--equity", type=float, help="Total Equity")
+    p_ratios.add_argument("--assets", type=float, help="Total Assets")
+    p_ratios.set_defaults(func=cmd_ratios)
+
+    # verify-pack
+    p_verify = subparsers.add_parser("verify-pack", help="Verify cryptographic SHA-256 digest of an audit pack")
+    p_verify.add_argument("file", help="Path to audit_pack_*.json file")
+    p_verify.set_defaults(func=cmd_verify_pack)
 
     # debate
     p_debate = subparsers.add_parser("debate", help="Run 4-agent red-team debate council")

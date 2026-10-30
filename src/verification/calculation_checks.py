@@ -4,7 +4,7 @@ Re-computes calculations to mathematically verify outputs independently.
 """
 from typing import Optional
 from pydantic import BaseModel, Field
-from src.tools.numerical_analysis import PeriodComparisonResult, SegmentAnalysisSummary
+from src.tools.numerical_analysis import PeriodComparisonResult, SegmentAnalysisSummary, DuPontAnalysisResult
 
 class CalculationVerificationResult(BaseModel):
     is_valid: bool
@@ -80,6 +80,45 @@ class CalculationVerifier:
                     computed_value=sum_contrib,
                     discrepancy=contrib_diff,
                     details=f"Sum of segment contribution percentages = {sum_contrib}%"
+                )
+            )
+
+        return checks
+
+    @staticmethod
+    def verify_dupont_analysis(result: DuPontAnalysisResult) -> list[CalculationVerificationResult]:
+        """
+        Mathematically verifies DuPont 3-stage ROE decomposition and internal formula consistency.
+        """
+        checks = []
+
+        # 1. Direct ROE verification
+        if result.total_equity != 0:
+            exp_roe = round((result.net_income / result.total_equity) * 100.0, 2)
+            act_roe = result.roe_pct or 0.0
+            diff = round(abs(exp_roe - act_roe), 2)
+            checks.append(
+                CalculationVerificationResult(
+                    is_valid=(diff <= 0.05),
+                    test_name="Direct ROE Formula Verification",
+                    expected_value=exp_roe,
+                    computed_value=act_roe,
+                    discrepancy=diff,
+                    details=f"Verified Direct ROE = ({result.net_income} / {result.total_equity}) * 100 = {exp_roe}%"
+                )
+            )
+
+        # 2. 3-stage product vs direct ROE
+        if result.reconciled_product_roe_pct is not None and result.roe_pct is not None:
+            prod_diff = round(abs(result.reconciled_product_roe_pct - result.roe_pct), 2)
+            checks.append(
+                CalculationVerificationResult(
+                    is_valid=(prod_diff <= 0.05),
+                    test_name="DuPont 3-Stage Product Additivity Proof",
+                    expected_value=result.roe_pct,
+                    computed_value=result.reconciled_product_roe_pct,
+                    discrepancy=prod_diff,
+                    details=f"Product (Margin * Turnover * Leverage) = {result.reconciled_product_roe_pct}% vs Direct ROE = {result.roe_pct}%"
                 )
             )
 

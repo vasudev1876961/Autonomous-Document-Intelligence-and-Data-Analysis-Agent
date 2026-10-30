@@ -157,9 +157,9 @@ with st.sidebar:
     # Upload documents
     uploaded_files = st.file_uploader(
         "Upload Documents",
-        type=["pdf", "docx", "xlsx", "csv"],
+        type=["pdf", "docx", "xlsx", "csv", "json", "txt", "md"],
         accept_multiple_files=True,
-        help="Upload heterogeneous reports, financial workbooks, or CSVs."
+        help="Upload heterogeneous reports, financial workbooks, JSON datasets, or CSVs."
     )
 
     sample_btn = st.button("📦 Load Sample Benchmark Documents", use_container_width=True)
@@ -431,6 +431,59 @@ with tabs[1]:
                 if Path(ch_p).exists():
                     with ch_cols[idx]:
                         st.image(ch_p, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("📐 DuPont ROE Decomposition & Financial Health Engine")
+        st.caption("3-Stage deterministic Return on Equity decomposition and audited corporate solvency/liquidity ratios.")
+
+        from src.tools.numerical_analysis import NumericalAnalyzer
+        d_col1, d_col2 = st.columns([1, 1])
+        with d_col1:
+            st.markdown("##### 3-Stage DuPont ROE Decomposition")
+            dp_ni = st.number_input("Net Income (₹ lakh)", value=150.0, step=10.0, key="dp_ni")
+            dp_rev = st.number_input("Revenue (₹ lakh)", value=1000.0, step=50.0, key="dp_rev")
+            dp_assets = st.number_input("Total Assets (₹ lakh)", value=2000.0, step=100.0, key="dp_assets")
+            dp_equity = st.number_input("Total Equity (₹ lakh)", value=500.0, step=50.0, key="dp_equity")
+
+            dp_res = NumericalAnalyzer.calculate_dupont_analysis(
+                net_income=dp_ni, revenue=dp_rev, total_assets=dp_assets, total_equity=dp_equity
+            )
+
+            dp_m1, dp_m2, dp_m3 = st.columns(3)
+            with dp_m1:
+                st.metric("Net Margin", f"{dp_res.net_profit_margin_pct:.2f}%")
+            with dp_m2:
+                st.metric("Asset Turnover", f"{dp_res.asset_turnover:.2f}x")
+            with dp_m3:
+                st.metric("Equity Multiplier", f"{dp_res.equity_multiplier:.2f}x")
+
+            if dp_res.is_mathematically_proven:
+                st.success(f"✅ **Deterministic Proof:** Product ROE ({dp_res.reconciled_product_roe_pct:.2f}%) matches Direct ROE ({dp_res.roe_pct:.2f}%) [Δ <= 0.05%]")
+            else:
+                st.error("❌ Discrepancy detected in DuPont product!")
+
+        with d_col2:
+            st.markdown("##### Key Liquidity & Solvency Ratios")
+            r_cogs = st.number_input("Cost of Goods Sold (₹ lakh)", value=600.0, step=50.0, key="r_cogs")
+            r_ca = st.number_input("Current Assets (₹ lakh)", value=600.0, step=50.0, key="r_ca")
+            r_cl = st.number_input("Current Liabilities (₹ lakh)", value=300.0, step=25.0, key="r_cl")
+            r_debt = st.number_input("Total Debt (₹ lakh)", value=400.0, step=50.0, key="r_debt")
+
+            rat_res = NumericalAnalyzer.calculate_financial_ratios(
+                revenue=dp_rev, cost_of_goods_sold=r_cogs, operating_income=240.0, net_income=dp_ni,
+                current_assets=r_ca, current_liabilities=r_cl, inventory=80.0, total_debt=r_debt,
+                total_equity=dp_equity, total_assets=dp_assets
+            )
+
+            rm1, rm2, rm3 = st.columns(3)
+            with rm1:
+                st.metric("Gross Margin", f"{rat_res.gross_margin_pct:.1f}%")
+            with rm2:
+                st.metric("Current Ratio", f"{rat_res.current_ratio:.2f}", rat_res.liquidity_status.upper())
+            with rm3:
+                st.metric("Debt-to-Equity", f"{rat_res.debt_to_equity:.2f}", rat_res.solvency_status.upper())
+
+            st.info(f"📊 **Financial Health Assessment:** {rat_res.ratio_summary}")
 
 # ==========================================
 # TAB 3: VERIFICATION & DISCREPANCY AUDIT
@@ -1015,7 +1068,21 @@ with tabs[11]:
             st.error("Invalid number input.")
 
     if numbers_to_audit:
-        res = ForensicAuditor.test_benford_first_digit(numbers_to_audit)
+        test_type = st.radio(
+            "Benford Audit Methodology:",
+            ["First-Digit Test (1..9)", "Second-Digit Test (0..9)", "First-Two Digits Test (10..99) [ACFE Gold Standard]"],
+            horizontal=True
+        )
+
+        if test_type == "First-Two Digits Test (10..99) [ACFE Gold Standard]":
+            res = ForensicAuditor.test_benford_first_two_digits(numbers_to_audit)
+            digit_label = "Two-Digit Combination (10..99)"
+        elif test_type == "Second-Digit Test (0..9)":
+            res = ForensicAuditor.test_benford_second_digit(numbers_to_audit)
+            digit_label = "Second Digit (0..9)"
+        else:
+            res = ForensicAuditor.test_benford_first_digit(numbers_to_audit)
+            digit_label = "First Digit (1..9)"
         
         f_c1, f_c2, f_c3, f_c4 = st.columns(4)
         with f_c1:
@@ -1023,7 +1090,7 @@ with tabs[11]:
         with f_c2:
             st.metric("Conformity Status", res.conformity_status)
         with f_c3:
-            st.metric("Mean Abs Deviation (MAD)", f"{res.mean_absolute_deviation:.4f}", help="Nigrini threshold: < 0.015 for acceptable conformity")
+            st.metric("Mean Abs Deviation (MAD)", f"{res.mean_absolute_deviation:.5f}", help="Nigrini MAD conformity thresholds")
         with f_c4:
             st.metric("Chi-Square Stat", f"{res.chi_square_stat:.2f}", f"p-val ≈ {res.p_value_approx}")
             
@@ -1033,7 +1100,7 @@ with tabs[11]:
         if res.digit_distributions:
             chart_df = pd.DataFrame([
                 {
-                    "Digit": d.digit,
+                    "Digit": str(d.digit),
                     "Observed Frequency": d.observed_frequency,
                     "Expected (Benford)": d.expected_frequency,
                     "Difference": d.frequency_difference,
@@ -1044,9 +1111,9 @@ with tabs[11]:
             
             c_left, c_right = st.columns([1, 1])
             with c_left:
-                st.markdown("##### Leading Digit Distribution Table")
+                st.markdown(f"##### {digit_label} Distribution Table")
                 st.dataframe(chart_df, use_container_width=True, hide_index=True)
             with c_right:
-                st.markdown("##### Empirical vs. Theoretical Benford Distribution")
+                st.markdown(f"##### Empirical vs. Theoretical Benford Distribution ({digit_label})")
                 st.bar_chart(chart_df.set_index("Digit")[["Observed Frequency", "Expected (Benford)"]])
 

@@ -92,6 +92,50 @@ class OutlierDetectionResult(BaseModel):
     has_outliers: bool
     threshold_z: float
 
+class DuPontAnalysisResult(BaseModel):
+    net_income: float
+    revenue: float
+    total_assets: float
+    total_equity: float
+    net_profit_margin_pct: Optional[float] = None
+    asset_turnover: Optional[float] = None
+    equity_multiplier: Optional[float] = None
+    roe_pct: Optional[float] = None
+    reconciled_product_roe_pct: Optional[float] = None
+    is_mathematically_proven: bool = False
+    proof_discrepancy: float = 0.0
+    driver_breakdown: str = ""
+
+class FinancialRatiosResult(BaseModel):
+    gross_margin_pct: Optional[float] = None
+    operating_margin_pct: Optional[float] = None
+    net_profit_margin_pct: Optional[float] = None
+    current_ratio: Optional[float] = None
+    quick_ratio: Optional[float] = None
+    debt_to_equity: Optional[float] = None
+    asset_turnover: Optional[float] = None
+    return_on_assets_pct: Optional[float] = None
+    liquidity_status: str = "adequate"
+    solvency_status: str = "moderate"
+    ratio_summary: str = ""
+
+class IQROutlierItem(BaseModel):
+    index: int
+    value: float
+    is_lower_outlier: bool
+    is_upper_outlier: bool
+    is_outlier: bool
+
+class IQROutlierResult(BaseModel):
+    metric_name: str
+    q1: float
+    q3: float
+    iqr: float
+    lower_bound: float
+    upper_bound: float
+    has_outliers: bool
+    outliers_detected: list[IQROutlierItem]
+
 class NumericalAnalyzer:
     @staticmethod
     def compare_periods(
@@ -379,7 +423,7 @@ class NumericalAnalyzer:
         has_out = False
         for idx, val in enumerate(arr):
             z = round(float((val - mean_val) / std_val), 3)
-            is_out = abs(z) >= threshold_z
+            is_out = bool(abs(z) >= threshold_z)
             if is_out:
                 has_out = True
             items.append(OutlierItem(index=idx, value=float(val), z_score=z, is_outlier=is_out))
@@ -389,4 +433,190 @@ class NumericalAnalyzer:
             outliers_detected=items,
             has_outliers=has_out,
             threshold_z=threshold_z
+        )
+
+    @staticmethod
+    def calculate_dupont_analysis(
+        net_income: float,
+        revenue: float,
+        total_assets: float,
+        total_equity: float
+    ) -> DuPontAnalysisResult:
+        """
+        Calculates 3-Stage DuPont ROE Decomposition:
+        ROE = Net Profit Margin * Asset Turnover * Equity Multiplier
+            = (Net Income / Revenue) * (Revenue / Total Assets) * (Total Assets / Total Equity)
+        Deterministically proves consistency between direct ROE and the 3-step product.
+        """
+        margin = round((net_income / revenue) * 100.0, 4) if revenue != 0 else None
+        turnover = round(revenue / total_assets, 4) if total_assets != 0 else None
+        multiplier = round(total_assets / total_equity, 4) if total_equity != 0 else None
+        direct_roe = round((net_income / total_equity) * 100.0, 4) if total_equity != 0 else None
+
+        product_roe = None
+        is_proven = False
+        discrepancy = 0.0
+
+        if margin is not None and turnover is not None and multiplier is not None and direct_roe is not None:
+            # (margin / 100) * turnover * multiplier * 100
+            product_roe = round((margin / 100.0) * turnover * multiplier * 100.0, 4)
+            discrepancy = round(abs(direct_roe - product_roe), 4)
+            is_proven = discrepancy <= 0.05
+
+        # Driver interpretation
+        driver_notes = []
+        if margin is not None:
+            driver_notes.append(f"Net Profit Margin: {margin:.2f}%")
+        if turnover is not None:
+            driver_notes.append(f"Asset Turnover: {turnover:.2f}x")
+        if multiplier is not None:
+            driver_notes.append(f"Equity Multiplier (Leverage): {multiplier:.2f}x")
+        if direct_roe is not None:
+            driver_notes.append(f"Direct ROE: {direct_roe:.2f}%")
+
+        return DuPontAnalysisResult(
+            net_income=net_income,
+            revenue=revenue,
+            total_assets=total_assets,
+            total_equity=total_equity,
+            net_profit_margin_pct=round(margin, 2) if margin is not None else None,
+            asset_turnover=round(turnover, 2) if turnover is not None else None,
+            equity_multiplier=round(multiplier, 2) if multiplier is not None else None,
+            roe_pct=round(direct_roe, 2) if direct_roe is not None else None,
+            reconciled_product_roe_pct=round(product_roe, 2) if product_roe is not None else None,
+            is_mathematically_proven=is_proven,
+            proof_discrepancy=discrepancy,
+            driver_breakdown=" | ".join(driver_notes)
+        )
+
+    @staticmethod
+    def calculate_financial_ratios(
+        revenue: float,
+        cost_of_goods_sold: Optional[float] = None,
+        operating_income: Optional[float] = None,
+        net_income: Optional[float] = None,
+        current_assets: Optional[float] = None,
+        current_liabilities: Optional[float] = None,
+        inventory: Optional[float] = 0.0,
+        total_debt: Optional[float] = None,
+        total_equity: Optional[float] = None,
+        total_assets: Optional[float] = None
+    ) -> FinancialRatiosResult:
+        """
+        Calculates audited profitability, liquidity, and solvency ratios.
+        """
+        gross_margin = None
+        if cost_of_goods_sold is not None and revenue > 0:
+            gross_margin = round(((revenue - cost_of_goods_sold) / revenue) * 100.0, 2)
+
+        op_margin = None
+        if operating_income is not None and revenue > 0:
+            op_margin = round((operating_income / revenue) * 100.0, 2)
+
+        net_margin = None
+        if net_income is not None and revenue > 0:
+            net_margin = round((net_income / revenue) * 100.0, 2)
+
+        curr_ratio = None
+        quick_ratio = None
+        liq_status = "adequate"
+        if current_assets is not None and current_liabilities is not None and current_liabilities > 0:
+            curr_ratio = round(current_assets / current_liabilities, 2)
+            inv = inventory or 0.0
+            quick_ratio = round((current_assets - inv) / current_liabilities, 2)
+            if curr_ratio >= 2.0:
+                liq_status = "robust"
+            elif curr_ratio < 1.0:
+                liq_status = "constrained"
+
+        dte = None
+        solv_status = "moderate"
+        if total_debt is not None and total_equity is not None and total_equity > 0:
+            dte = round(total_debt / total_equity, 2)
+            if dte <= 0.5:
+                solv_status = "strong"
+            elif dte > 2.0:
+                solv_status = "leveraged"
+
+        asset_turnover = None
+        roa = None
+        if total_assets is not None and total_assets > 0:
+            asset_turnover = round(revenue / total_assets, 2)
+            if net_income is not None:
+                roa = round((net_income / total_assets) * 100.0, 2)
+
+        summary_parts = []
+        if op_margin is not None:
+            summary_parts.append(f"Operating Margin: {op_margin:.1f}%")
+        if curr_ratio is not None:
+            summary_parts.append(f"Current Ratio: {curr_ratio:.2f} ({liq_status})")
+        if dte is not None:
+            summary_parts.append(f"Debt-to-Equity: {dte:.2f} ({solv_status})")
+
+        return FinancialRatiosResult(
+            gross_margin_pct=gross_margin,
+            operating_margin_pct=op_margin,
+            net_profit_margin_pct=net_margin,
+            current_ratio=curr_ratio,
+            quick_ratio=quick_ratio,
+            debt_to_equity=dte,
+            asset_turnover=asset_turnover,
+            return_on_assets_pct=roa,
+            liquidity_status=liq_status,
+            solvency_status=solv_status,
+            ratio_summary=" | ".join(summary_parts) if summary_parts else "Ratios calculated from provided accounting figures."
+        )
+
+    @staticmethod
+    def detect_outliers_iqr(
+        metric_name: str,
+        values: list[float],
+        multiplier: float = 1.5
+    ) -> IQROutlierResult:
+        """
+        Detects non-parametric outliers using Tukey's fences (IQR method).
+        Lower Bound = Q1 - (multiplier * IQR), Upper Bound = Q3 + (multiplier * IQR).
+        """
+        arr = np.array(values, dtype=np.float64)
+        if len(arr) < 4:
+            return IQROutlierResult(
+                metric_name=metric_name,
+                q1=0.0, q3=0.0, iqr=0.0,
+                lower_bound=0.0, upper_bound=0.0,
+                has_outliers=False,
+                outliers_detected=[]
+            )
+
+        q1 = float(np.percentile(arr, 25))
+        q3 = float(np.percentile(arr, 75))
+        iqr = q3 - q1
+        lower_bound = round(q1 - (multiplier * iqr), 4)
+        upper_bound = round(q3 + (multiplier * iqr), 4)
+
+        items: list[IQROutlierItem] = []
+        has_outliers = False
+
+        for idx, val in enumerate(arr):
+            is_lower = bool(val < lower_bound)
+            is_upper = bool(val > upper_bound)
+            is_out = bool(is_lower or is_upper)
+            if is_out:
+                has_outliers = True
+            items.append(IQROutlierItem(
+                index=idx,
+                value=float(val),
+                is_lower_outlier=is_lower,
+                is_upper_outlier=is_upper,
+                is_outlier=is_out
+            ))
+
+        return IQROutlierResult(
+            metric_name=metric_name,
+            q1=round(q1, 4),
+            q3=round(q3, 4),
+            iqr=round(iqr, 4),
+            lower_bound=lower_bound,
+            upper_bound=upper_bound,
+            has_outliers=has_outliers,
+            outliers_detected=items
         )

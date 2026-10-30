@@ -19,7 +19,7 @@ from src.evaluation.benchmark_runner import BenchmarkRunner
 
 app = FastAPI(
     title="Autonomous Document Intelligence & Data Analysis Agent API",
-    version="4.0.0",
+    version="4.1.0",
     description="Enterprise REST API for evidence-driven multi-format document analysis, verified calculations, and HITL governance."
 )
 
@@ -65,6 +65,31 @@ class HallucinationGuardRequest(BaseModel):
     claims: list[str] = Field(description="List of natural language claims or proposition strings to audit.")
     context_text: Optional[str] = Field(default="", description="Retrieved evidence context text.")
 
+class DuPontRequest(BaseModel):
+    net_income: float
+    revenue: float
+    total_assets: float
+    total_equity: float
+
+class FinancialRatiosRequest(BaseModel):
+    revenue: float
+    cost_of_goods_sold: Optional[float] = None
+    operating_income: Optional[float] = None
+    net_income: Optional[float] = None
+    current_assets: Optional[float] = None
+    current_liabilities: Optional[float] = None
+    inventory: Optional[float] = 0.0
+    total_debt: Optional[float] = None
+    total_equity: Optional[float] = None
+    total_assets: Optional[float] = None
+
+class CausalShockRequest(BaseModel):
+    root_node_id: str = "driver_supply_chain"
+    shock_pct: float = -15.0
+
+class VerifyAuditPackRequest(BaseModel):
+    audit_pack_path: str = Field(description="Relative or absolute path to the audit pack JSON file.")
+
 # ----------------- Endpoints -----------------
 
 @app.get("/health", tags=["System"])
@@ -73,7 +98,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": "autonomous-document-intelligence",
-        "version": "4.0.0",
+        "version": "4.1.0",
         "active_db": str(settings.db_path),
         "deterministic_math": True,
         "hitl_enabled": True,
@@ -148,6 +173,94 @@ def audit_benford_second_digit(req: BenfordAuditRequest):
     from src.tools.forensic_auditor import ForensicAuditor
     result = ForensicAuditor.test_benford_second_digit(req.numbers)
     return result.model_dump()
+
+@app.post("/api/v1/forensics/benford-first-two-digits", tags=["Forensic Accounting"])
+def audit_benford_first_two_digits(req: BenfordAuditRequest):
+    """
+    Executes Benford's Law First-Two Digits (10..99) statistical analysis on an array of numbers.
+    Computes Nigrini first-two digits MAD, Chi-Square (89 df), and checks for accounting fraud/clusters.
+    """
+    from src.tools.forensic_auditor import ForensicAuditor
+    result = ForensicAuditor.test_benford_first_two_digits(req.numbers)
+    return result.model_dump()
+
+@app.post("/api/v1/analytics/dupont", tags=["Analytics & Scenarios"])
+def calculate_dupont(req: DuPontRequest):
+    """
+    Executes 3-Stage DuPont ROE Decomposition and verifies mathematical proof consistency.
+    ROE = Net Margin * Asset Turnover * Equity Multiplier.
+    """
+    from src.tools.numerical_analysis import NumericalAnalyzer
+    result = NumericalAnalyzer.calculate_dupont_analysis(
+        net_income=req.net_income,
+        revenue=req.revenue,
+        total_assets=req.total_assets,
+        total_equity=req.total_equity
+    )
+    return result.model_dump()
+
+@app.post("/api/v1/analytics/financial-ratios", tags=["Analytics & Scenarios"])
+def calculate_ratios(req: FinancialRatiosRequest):
+    """
+    Calculates audited liquidity, solvency, and profitability financial ratios.
+    """
+    from src.tools.numerical_analysis import NumericalAnalyzer
+    result = NumericalAnalyzer.calculate_financial_ratios(
+        revenue=req.revenue,
+        cost_of_goods_sold=req.cost_of_goods_sold,
+        operating_income=req.operating_income,
+        net_income=req.net_income,
+        current_assets=req.current_assets,
+        current_liabilities=req.current_liabilities,
+        inventory=req.inventory,
+        total_debt=req.total_debt,
+        total_equity=req.total_equity,
+        total_assets=req.total_assets
+    )
+    return result.model_dump()
+
+@app.post("/api/v1/knowledge-graph/causal-shock", tags=["Knowledge Graph"])
+def run_causal_shock(req: CausalShockRequest):
+    """
+    Simulates operational shock propagation through the causal knowledge graph to downstream metrics.
+    """
+    from src.retrieval.knowledge_graph import DocumentKnowledgeGraph, EntityNode, RelationEdge
+    from src.tools.numerical_analysis import NumericalAnalyzer
+
+    kg = DocumentKnowledgeGraph()
+    sample_segments = [
+        {"segment": "Segment A", "p1": 500.0, "p2": 420.0},
+        {"segment": "Segment B", "p1": 300.0, "p2": 280.0},
+        {"segment": "Segment C", "p1": 200.0, "p2": 200.0},
+    ]
+    seg_summary = NumericalAnalyzer.analyze_segment_contributions("Revenue", sample_segments, "₹ lakh")
+    kg.populate_from_investigation(chunks=[], segment_data=seg_summary)
+
+    # Ensure root node is present if not already
+    if req.root_node_id not in kg.nodes_data:
+        kg.add_entity(EntityNode(
+            node_id=req.root_node_id,
+            name=req.root_node_id.replace("_", " ").title(),
+            entity_type="Driver"
+        ))
+        kg.add_relation(RelationEdge(
+            source_id=req.root_node_id,
+            target_id="segment_segment_a",
+            relation_type="CAUSED_BY",
+            weight=0.9
+        ))
+
+    result = kg.simulate_causal_shock(root_node_id=req.root_node_id, shock_pct=req.shock_pct)
+    return result.model_dump()
+
+@app.post("/api/v1/verification/verify-audit-pack", tags=["Verification"])
+def verify_audit_pack(req: VerifyAuditPackRequest):
+    """
+    Verifies cryptographic SHA-256 digital signature of an exported JSON audit pack deliverable.
+    """
+    from src.tools.report_export import ReportExporter
+    result = ReportExporter.verify_audit_pack_integrity(req.audit_pack_path)
+    return result
 
 
 @app.post("/api/v1/verification/hallucination-guard", tags=["Verification"])

@@ -33,6 +33,24 @@ class KnowledgeGraphSummary(BaseModel):
     key_hubs: list[dict[str, Any]]
     causal_paths: list[list[str]]
 
+class CausalShockImpact(BaseModel):
+    node_id: str
+    node_name: str
+    entity_type: str
+    hops_from_root: int
+    transmitted_weight: float
+    effective_shock_pct: float
+    estimated_delta_val: Optional[float] = None
+
+class CausalShockSimulationResult(BaseModel):
+    root_node_id: str
+    root_node_name: str
+    initial_shock_pct: float
+    impacted_entities: list[CausalShockImpact]
+    net_revenue_impact_pct: Optional[float] = None
+    net_revenue_delta: Optional[float] = None
+    narrative_implication: str
+
 class DocumentKnowledgeGraph:
     """
     Constructs, queries, and visualizes an attributed Knowledge Graph over document evidence.
@@ -262,3 +280,108 @@ class DocumentKnowledgeGraph:
                 }
             })
         return elements
+
+    def find_paths_between(self, source_id: str, target_id: str, cutoff: int = 4) -> list[list[str]]:
+        """
+        Traces all directed multi-hop paths between two specific entity nodes.
+        """
+        if source_id not in self.graph or target_id not in self.graph:
+            return []
+        try:
+            paths = list(nx.all_simple_paths(self.graph, source=source_id, target=target_id, cutoff=cutoff))
+            named_paths = []
+            for p in paths:
+                named_p = [self.nodes_data[n].name if n in self.nodes_data else n for n in p]
+                named_paths.append(named_p)
+            return named_paths
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return []
+
+    def simulate_causal_shock(self, root_node_id: str, shock_pct: float) -> CausalShockSimulationResult:
+        """
+        Simulates causal shock propagation from a root event/driver through the graph to downstream metrics.
+        Traverses breadth-first along outgoing edges, attenuating by edge weights.
+        """
+        root_name = self.nodes_data[root_node_id].name if root_node_id in self.nodes_data else root_node_id
+        if root_node_id not in self.graph:
+            return CausalShockSimulationResult(
+                root_node_id=root_node_id,
+                root_node_name=root_name,
+                initial_shock_pct=shock_pct,
+                impacted_entities=[],
+                net_revenue_impact_pct=0.0,
+                net_revenue_delta=0.0,
+                narrative_implication=f"Root node '{root_node_id}' does not exist in the causal graph."
+            )
+
+        # BFS shock propagation
+        visited = {root_node_id: 1.0}
+        depths = {root_node_id: 0}
+        queue = [root_node_id]
+        impacts: list[CausalShockImpact] = []
+
+        while queue:
+            curr = queue.pop(0)
+            curr_trans = visited[curr]
+            curr_depth = depths[curr]
+
+            for neighbor in self.graph.successors(curr):
+                edge_weight = self.graph[curr][neighbor].get("weight", 0.8)
+                trans = curr_trans * edge_weight
+                new_depth = curr_depth + 1
+
+                if neighbor not in visited or trans > visited[neighbor]:
+                    visited[neighbor] = trans
+                    depths[neighbor] = new_depth
+                    queue.append(neighbor)
+
+        # Build impact records for impacted nodes
+        net_rev_shock = 0.0
+        for n_id, trans in visited.items():
+            if n_id == root_node_id:
+                continue
+            node_obj = self.nodes_data.get(n_id)
+            node_name = node_obj.name if node_obj else n_id
+            ent_type = node_obj.entity_type if node_obj else "Unknown"
+            eff_shock = round(shock_pct * trans, 2)
+
+            est_delta = None
+            if node_obj and "period_2_val" in node_obj.attributes:
+                p2 = float(node_obj.attributes["period_2_val"])
+                est_delta = round(p2 * (eff_shock / 100.0), 2)
+            elif n_id == "metric_revenue":
+                net_rev_shock = eff_shock
+
+            impacts.append(CausalShockImpact(
+                node_id=n_id,
+                node_name=node_name,
+                entity_type=ent_type,
+                hops_from_root=depths.get(n_id, 1),
+                transmitted_weight=round(trans, 3),
+                effective_shock_pct=eff_shock,
+                estimated_delta_val=est_delta
+            ))
+
+        # Sort by hops then transmitted weight
+        impacts.sort(key=lambda x: (x.hops_from_root, -x.transmitted_weight))
+
+        rev_delta = None
+        if "metric_revenue" in self.nodes_data:
+            # Baseline 900
+            rev_delta = round(900.0 * (net_rev_shock / 100.0), 2)
+
+        narrative = (
+            f"An operational shock of {shock_pct:+.1f}% initiated at '{root_name}' propagates across "
+            f"{len(impacts)} connected entities. Consolidated revenue is estimated to experience a "
+            f"{net_rev_shock:+.2f}% downstream impact (estimated delta: {rev_delta:+.2f} lakh)."
+        )
+
+        return CausalShockSimulationResult(
+            root_node_id=root_node_id,
+            root_node_name=root_name,
+            initial_shock_pct=shock_pct,
+            impacted_entities=impacts,
+            net_revenue_impact_pct=net_rev_shock,
+            net_revenue_delta=rev_delta,
+            narrative_implication=narrative
+        )

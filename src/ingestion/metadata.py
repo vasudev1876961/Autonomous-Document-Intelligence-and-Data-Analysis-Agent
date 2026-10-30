@@ -13,6 +13,9 @@ class FileType(str, Enum):
     DOCX = "docx"
     XLSX = "xlsx"
     CSV = "csv"
+    JSON = "json"
+    TXT = "txt"
+    MD = "md"
     UNKNOWN = "unknown"
 
 class ClaimCategory(str, Enum):
@@ -82,5 +85,8 @@ def detect_file_type(file_path: Path) -> FileType:
         ".docx": FileType.DOCX,
         ".xlsx": FileType.XLSX,
         ".csv": FileType.CSV,
+        ".json": FileType.JSON,
+        ".txt": FileType.TXT,
+        ".md": FileType.MD,
     }
     return mapping.get(suffix, FileType.UNKNOWN)

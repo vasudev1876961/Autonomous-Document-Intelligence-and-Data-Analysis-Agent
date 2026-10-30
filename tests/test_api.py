@@ -1,8 +1,10 @@
 """
 Integration tests for the Enterprise FastAPI REST Microservice.
 """
+from pathlib import Path
 from fastapi.testclient import TestClient
 from src.api.server import app
+from src.tools.report_export import ReportExporter
 
 client = TestClient(app)
 
@@ -11,7 +13,7 @@ def test_api_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["version"] == "4.0.0"
+    assert data["version"] == "4.1.0"
     assert data["deterministic_math"] is True
 
 def test_api_scenarios_simulation():
@@ -62,6 +64,66 @@ def test_api_benford_second_digit_audit():
     assert len(data["digit_distributions"]) == 10
     assert "mean_absolute_deviation" in data
 
+def test_api_benford_first_two_digits_audit():
+    numbers = [
+        105, 115, 125, 135, 145, 155, 165, 175, 185, 195,
+        205, 215, 225, 235, 245, 255, 265, 275, 285, 295, 310
+    ]
+    payload = {"numbers": numbers}
+    response = client.post("/api/v1/forensics/benford-first-two-digits", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sample_size"] == len(numbers)
+    assert len(data["digit_distributions"]) == 90
+    assert "mean_absolute_deviation" in data
+
+def test_api_dupont_analysis():
+    payload = {
+        "net_income": 150.0,
+        "revenue": 1000.0,
+        "total_assets": 2000.0,
+        "total_equity": 500.0
+    }
+    response = client.post("/api/v1/analytics/dupont", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["net_profit_margin_pct"] == 15.0
+    assert data["asset_turnover"] == 0.5
+    assert data["equity_multiplier"] == 4.0
+    assert data["roe_pct"] == 30.0
+    assert data["is_mathematically_proven"] is True
+
+def test_api_financial_ratios():
+    payload = {
+        "revenue": 1000.0,
+        "cost_of_goods_sold": 600.0,
+        "operating_income": 200.0,
+        "net_income": 140.0,
+        "current_assets": 500.0,
+        "current_liabilities": 250.0,
+        "total_debt": 300.0,
+        "total_equity": 700.0,
+        "total_assets": 1200.0
+    }
+    response = client.post("/api/v1/analytics/financial-ratios", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["gross_margin_pct"] == 40.0
+    assert data["operating_margin_pct"] == 20.0
+    assert data["current_ratio"] == 2.0
+    assert data["liquidity_status"] == "robust"
+
+def test_api_causal_shock():
+    payload = {
+        "root_node_id": "driver_supply_chain",
+        "shock_pct": -12.5
+    }
+    response = client.post("/api/v1/knowledge-graph/causal-shock", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["root_node_id"] == "driver_supply_chain"
+    assert len(data["impacted_entities"]) >= 1
+    assert data["net_revenue_impact_pct"] is not None
 
 def test_api_hallucination_guard():
     payload = {

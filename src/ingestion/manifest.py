@@ -1,5 +1,6 @@
 """
 Ingestion Pipeline Coordinator: Validates, deduplicates, and parses documents into unified chunks.
+Supports PDF, DOCX, XLSX, CSV, JSON, TXT, and Markdown files.
 """
 from pathlib import Path
 from typing import Optional
@@ -8,6 +9,8 @@ from src.ingestion.pdf_parser import PDFParser
 from src.ingestion.docx_parser import DOCXParser
 from src.ingestion.excel_parser import ExcelParser
 from src.ingestion.csv_parser import CSVParser
+from src.ingestion.json_parser import JSONParser
+from src.ingestion.text_parser import TextParser
 
 class IngestionManager:
     def __init__(self):
@@ -15,6 +18,8 @@ class IngestionManager:
         self.docx_parser = DOCXParser()
         self.excel_parser = ExcelParser()
         self.csv_parser = CSVParser()
+        self.json_parser = JSONParser()
+        self.text_parser = TextParser()
 
     def process_file(self, file_path: Path | str) -> tuple[DocumentMetadata, list[ExtractedChunk]]:
         path_obj = Path(file_path)
@@ -30,6 +35,10 @@ class IngestionManager:
             return self.excel_parser.parse(path_obj)
         elif file_type == FileType.CSV:
             return self.csv_parser.parse(path_obj)
+        elif file_type == FileType.JSON:
+            return self.json_parser.parse(path_obj)
+        elif file_type in (FileType.TXT, FileType.MD):
+            return self.text_parser.parse(path_obj)
         else:
             raise ValueError(f"Unsupported file format: {path_obj.suffix}")
 
@@ -39,7 +48,7 @@ class IngestionManager:
         all_chunks: list[ExtractedChunk] = []
         seen_hashes: set[str] = set()
 
-        for ext in ["*.pdf", "*.docx", "*.xlsx", "*.csv"]:
+        for ext in ["*.pdf", "*.docx", "*.xlsx", "*.csv", "*.json", "*.txt", "*.md"]:
             for file_path in path_obj.glob(ext):
                 meta, chunks = self.process_file(file_path)
                 # Deduplication check

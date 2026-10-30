@@ -19,6 +19,14 @@ def test_extract_second_digit():
     assert ForensicAuditor.extract_second_digit(5) is None
     assert ForensicAuditor.extract_second_digit(0) is None
 
+def test_extract_first_two_digits():
+    assert ForensicAuditor.extract_first_two_digits(1234.5) == 12
+    assert ForensicAuditor.extract_first_two_digits(0.0056) == 56
+    assert ForensicAuditor.extract_first_two_digits(-987) == 98
+    assert ForensicAuditor.extract_first_two_digits(5) is None
+    assert ForensicAuditor.extract_first_two_digits(0) is None
+    assert ForensicAuditor.extract_first_two_digits("invalid") is None
+
 def test_benford_first_digit_insufficient_data():
     res = ForensicAuditor.test_benford_first_digit([10, 20, 30])
     assert res.sample_size == 3
@@ -52,6 +60,19 @@ def test_benford_second_digit_analysis():
     assert res.chi_square_stat >= 0.0
     assert isinstance(res.conformity_status, str)
 
+def test_benford_first_two_digits_analysis():
+    numbers = [
+        105, 112, 128, 135, 142, 155, 168, 180, 195,
+        205, 218, 225, 238, 245, 258, 265, 280, 295,
+        310, 325, 340, 355, 370, 385, 395, 420, 450
+    ]
+    res = ForensicAuditor.test_benford_first_two_digits(numbers)
+    assert res.sample_size == len(numbers)
+    assert len(res.digit_distributions) == 90  # Digits 10..99
+    assert res.mean_absolute_deviation >= 0.0
+    assert res.chi_square_stat >= 0.0
+    assert isinstance(res.conformity_status, str)
+
 def test_audit_tabular_data():
     data = {
         "Segment": ["A", "B", "C", "D", "E"],
@@ -64,6 +85,6 @@ def test_audit_tabular_data():
     assert report.total_numbers_audited == 10
     assert report.benford_first_digit is not None
     assert report.benford_second_digit is not None
+    assert report.benford_first_two_digits is not None
     assert isinstance(report.overall_risk_score, float)
     assert 0.0 <= report.overall_risk_score <= 1.0
-

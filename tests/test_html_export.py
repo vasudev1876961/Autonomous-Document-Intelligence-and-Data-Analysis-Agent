@@ -43,7 +43,9 @@ def test_export_audit_pack(tmp_path):
     pack_path = exporter.export_audit_pack(state, filename="test_audit_pack.json")
     assert pack_path.exists()
     data = json.loads(pack_path.read_text(encoding="utf-8"))
-    assert data["audit_pack_version"] == "4.0.0"
+    assert data["audit_pack_version"] == "4.1.0"
     assert data["task_id"] == "task_test_123"
     assert data["status"] == "COMPLETED_AND_VERIFIED"
     assert "deterministic_math_ledger" in data
+    assert "cryptographic_provenance" in data
+    assert data["cryptographic_provenance"]["signature_algorithm"] == "SHA-256"
