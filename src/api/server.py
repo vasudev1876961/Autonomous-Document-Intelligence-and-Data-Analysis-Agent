@@ -119,6 +119,24 @@ class TableStructureRequest(BaseModel):
     raw_rows: list[list[str]] = Field(description="Raw extracted matrix of table rows and cells.")
     page_number: int = Field(default=1, ge=1)
 
+class ExecuteCodeRequest(BaseModel):
+    code: str = Field(description="Python code string to execute within the secure sandbox.")
+    context: Optional[dict[str, Any]] = Field(default=None, description="Initial variable state dict.")
+
+class DCFValuationRequest(BaseModel):
+    free_cash_flows: list[float] = Field(description="Projected annual free cash flows, e.g. [100.0, 115.0, 130.0, 145.0, 160.0]")
+    wacc: float = Field(default=0.09, description="Discount rate / Weighted Average Cost of Capital (e.g. 0.09 = 9%)")
+    terminal_growth: float = Field(default=0.025, description="Perpetual terminal growth rate (e.g. 0.025 = 2.5%)")
+    net_debt: float = Field(default=0.0, description="Net debt to deduct for equity valuation.")
+    shares_outstanding: Optional[float] = Field(default=1.0, description="Shares outstanding for per-share target price.")
+
+class MonteCarloVaRRequest(BaseModel):
+    initial_value: float = Field(default=1000.0)
+    volatility: float = Field(default=0.08, description="Annualized volatility sigma (e.g. 0.08 = 8%)")
+    drift: float = Field(default=0.0, description="Expected drift / return rate.")
+    periods: int = Field(default=4, description="Horizon periods.")
+    num_paths: int = Field(default=10000, ge=100, le=50000, description="Number of stochastic simulation paths (default: 10,000).")
+
 # ----------------- Endpoints -----------------
 
 @app.get("/health", tags=["System"])
@@ -496,6 +514,50 @@ def recognize_table_structure(req: TableStructureRequest):
         page_number=req.page_number
     )
     return rec.model_dump()
+
+@app.post("/api/v1/interpreter/execute", tags=["Code Interpreter & Quantitative Sandbox"])
+def execute_sandboxed_code(req: ExecuteCodeRequest):
+    """
+    Executes Python code in an isolated sandbox with AST security filtering,
+    timeout guard, and safe financial library injection.
+    """
+    from src.tools.code_interpreter import SandboxedFinancialInterpreter
+    result = SandboxedFinancialInterpreter.execute_code(
+        code_str=req.code,
+        initial_context=req.context
+    )
+    return result.model_dump()
+
+@app.post("/api/v1/interpreter/dcf", tags=["Code Interpreter & Quantitative Sandbox"])
+def calculate_dcf_valuation(req: DCFValuationRequest):
+    """
+    Performs multi-period Discounted Cash Flow (DCF) valuation with 2D sensitivity matrix (WACC vs Terminal Growth).
+    """
+    from src.tools.code_interpreter import SandboxedFinancialInterpreter
+    result = SandboxedFinancialInterpreter.run_dcf_valuation(
+        free_cash_flows=req.free_cash_flows,
+        wacc=req.wacc,
+        terminal_growth=req.terminal_growth,
+        net_debt=req.net_debt,
+        shares_outstanding=req.shares_outstanding
+    )
+    return result.model_dump()
+
+@app.post("/api/v1/interpreter/monte-carlo-var", tags=["Code Interpreter & Quantitative Sandbox"])
+def calculate_monte_carlo_var(req: MonteCarloVaRRequest):
+    """
+    Executes a 10,000-path stochastic forward simulation computing Value-at-Risk (VaR 95%, 99%)
+    and Conditional VaR (Expected Shortfall).
+    """
+    from src.tools.code_interpreter import SandboxedFinancialInterpreter
+    result = SandboxedFinancialInterpreter.run_monte_carlo_var(
+        initial_value=req.initial_value,
+        volatility=req.volatility,
+        drift=req.drift,
+        periods=req.periods,
+        num_paths=req.num_paths
+    )
+    return result.model_dump()
 
 @app.get("/api/v1/benchmarks/run", tags=["Evaluation & Benchmarks"])
 def run_benchmarks():

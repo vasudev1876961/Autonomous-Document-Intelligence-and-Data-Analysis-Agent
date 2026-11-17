@@ -399,6 +399,42 @@ def cmd_ground(args):
         print(f"  • Grounded Snippet:  \"{res.matched_text[:80]}...\"")
     print("=" * 65 + "\n")
 
+def cmd_dcf(args):
+    """Executes multi-period DCF valuation and 2D WACC vs Terminal Growth sensitivity matrix."""
+    from src.tools.code_interpreter import SandboxedFinancialInterpreter
+    fcfs = [float(v.strip()) for v in args.fcf.split(",")]
+    res = SandboxedFinancialInterpreter.run_dcf_valuation(
+        free_cash_flows=fcfs,
+        wacc=args.wacc,
+        terminal_growth=args.growth,
+        net_debt=args.debt or 0.0,
+        shares_outstanding=args.shares or 1.0
+    )
+    print("\n" + "=" * 65)
+    print("💰 DISCOUNTED CASH FLOW (DCF) & SENSITIVITY VALUATION")
+    print("=" * 65)
+    print(f"  • Projected Free Cash Flows: {res.free_cash_flows}")
+    print(f"  • WACC (Discount Rate):      {res.discount_rate_wacc_pct:.2f}%")
+    print(f"  • Perpetual Growth Rate (g): {res.terminal_growth_rate_pct:.2f}%")
+    print(f"  • PV of Explicit FCFs:       {res.discounted_fcf_sum:,.2f}")
+    print(f"  • Terminal Value (Nominal):  {res.terminal_value:,.2f}")
+    print(f"  • Discounted Terminal Value: {res.discounted_terminal_value:,.2f}")
+    print(f"  • Implied Enterprise Value:  {res.enterprise_value:,.2f}")
+    print(f"  • Implied Equity Value:      {res.equity_value:,.2f}")
+    if res.implied_share_price:
+        print(f"  • Implied Target Share Price:{res.implied_share_price:,.2f}")
+
+    print("\n📊 2D SENSITIVITY MATRIX (WACC vs Perpetual Growth Rate):")
+    if res.sensitivity_matrix_wacc_vs_growth:
+        keys = [k for k in res.sensitivity_matrix_wacc_vs_growth[0].keys() if k != "wacc_pct"]
+        header = f"  {'WACC':<8} | " + " | ".join(f"{k:<8}" for k in keys)
+        print(header)
+        print("  " + "-" * len(header))
+        for row in res.sensitivity_matrix_wacc_vs_growth:
+            line = f"  {row['wacc_pct']:.1f}%   | " + " | ".join(f"{row[k]:>8,.1f}" if row[k] else "     N/A" for k in keys)
+            print(line)
+    print("=" * 65 + "\n")
+
 def cmd_dupont(args):
     """Executes 3-Stage DuPont Analysis with mathematical proof."""
     from src.tools.numerical_analysis import NumericalAnalyzer
@@ -558,6 +594,15 @@ def main():
     p_ground.add_argument("--bbox", help="Comma-separated bounding box x0,y0,x1,y1")
     p_ground.add_argument("--text", help="Text string to find and highlight")
     p_ground.set_defaults(func=cmd_ground)
+
+    # dcf (Pillar 3: Financial Sandbox & DCF Valuation)
+    p_dcf = subparsers.add_parser("dcf", help="Run multi-period DCF valuation and 2D sensitivity matrix")
+    p_dcf.add_argument("--fcf", required=True, help="Comma-separated projected FCFs, e.g. 100,115,130,145,160")
+    p_dcf.add_argument("--wacc", type=float, default=0.09, help="Discount rate / WACC (default 0.09 = 9%)")
+    p_dcf.add_argument("--growth", type=float, default=0.025, help="Terminal growth rate (default 0.025 = 2.5%)")
+    p_dcf.add_argument("--debt", type=float, default=0.0, help="Net debt to deduct")
+    p_dcf.add_argument("--shares", type=float, default=1.0, help="Shares outstanding for target price")
+    p_dcf.set_defaults(func=cmd_dcf)
 
     # scenario
     p_scenario = subparsers.add_parser("scenario", help="Run counterfactual simulation and risk bounds")

@@ -600,11 +600,13 @@ with tabs[4]:
         seg_summary = NumericalAnalyzer.analyze_segment_contributions("Revenue", sample_segs, "₹ lakh")
         st.info("Showing interactive simulation playground calibrated on benchmark baseline data.")
 
-    sim_tab1, sim_tab2, sim_tab3, sim_tab4 = st.tabs([
+    sim_tab1, sim_tab2, sim_tab3, sim_tab4, sim_tab5, sim_tab6 = st.tabs([
         "🔮 Counterfactual Simulation",
         "🎛️ Sensitivity Matrix",
         "🎯 Recovery Target Solver",
-        "🎲 Monte Carlo Volatility Bounds"
+        "🎲 Monte Carlo Volatility Bounds",
+        "💰 DCF Valuation & 2D Sensitivity",
+        "💻 Sandboxed Python Interpreter"
     ])
 
     with sim_tab1:
@@ -693,6 +695,109 @@ with tabs[4]:
 
         if mc_res.simulation_samples:
             st.bar_chart(pd.Series(mc_res.simulation_samples).sort_values().reset_index(drop=True))
+
+    with sim_tab5:
+        st.markdown("#### Discounted Cash Flow (DCF) & 2D WACC Sensitivity Engine")
+        st.caption("Multi-period discounted cash flow valuation with 2D sensitivity grid across cost of capital (WACC) and terminal growth.")
+        from src.tools.code_interpreter import SandboxedFinancialInterpreter
+
+        dcf_c1, dcf_c2, dcf_c3 = st.columns([2, 1, 1])
+        with dcf_c1:
+            fcf_input_str = st.text_input("Projected Free Cash Flows (5 Years, Comma-Separated)", value="100.0, 115.0, 130.0, 145.0, 160.0")
+        with dcf_c2:
+            dcf_wacc = st.slider("WACC Discount Rate (%)", 6.0, 14.0, 9.0, 0.5) / 100.0
+        with dcf_c3:
+            dcf_growth = st.slider("Terminal Growth Rate (%)", 1.0, 4.0, 2.5, 0.25) / 100.0
+
+        dcf_sub1, dcf_sub2 = st.columns(2)
+        with dcf_sub1:
+            dcf_debt = st.number_input("Net Debt to Deduct (₹ lakh)", value=0.0, step=50.0)
+        with dcf_sub2:
+            dcf_shares = st.number_input("Shares Outstanding (lakh shares)", value=1.0, step=0.5)
+
+        try:
+            fcfs = [float(v.strip()) for v in fcf_input_str.split(",") if v.strip()]
+            dcf_result = SandboxedFinancialInterpreter.run_dcf_valuation(
+                free_cash_flows=fcfs,
+                wacc=dcf_wacc,
+                terminal_growth=dcf_growth,
+                net_debt=dcf_debt,
+                shares_outstanding=dcf_shares
+            )
+
+            d1, d2, d3, d4 = st.columns(4)
+            with d1:
+                st.metric("Enterprise Value", f"₹ {dcf_result.enterprise_value:,.1f} lakh")
+            with d2:
+                st.metric("Equity Value", f"₹ {dcf_result.equity_value:,.1f} lakh")
+            with d3:
+                st.metric("PV of 5-Yr FCFs", f"₹ {dcf_result.discounted_fcf_sum:,.1f} lakh")
+            with d4:
+                st.metric("Discounted Terminal Val", f"₹ {dcf_result.discounted_terminal_value:,.1f} lakh")
+
+            st.markdown("##### 2D Sensitivity Grid (Implied Value across WACC vs Perpetual Growth)")
+            if dcf_result.sensitivity_matrix_wacc_vs_growth:
+                df_sens = pd.DataFrame(dcf_result.sensitivity_matrix_wacc_vs_growth).set_index("wacc_pct")
+                st.dataframe(df_sens, use_container_width=True)
+        except Exception as e:
+            st.error(f"DCF Valuation Error: {str(e)}")
+
+    with sim_tab6:
+        st.markdown("#### 💻 Sandboxed Python Code Interpreter & Quant Sandbox")
+        st.caption("Secure in-memory execution sandbox with AST static security filtering, zero network/process access, and safe financial library injection.")
+        from src.tools.code_interpreter import SandboxedFinancialInterpreter
+
+        template_choice = st.selectbox("Load Quantitative Template", [
+            "10,000-Path Monte Carlo Value-at-Risk (VaR & CVaR)",
+            "Dynamic Compound Growth Rate (CAGR)",
+            "Custom Sensitivity Simulation"
+        ])
+
+        default_codes = {
+            "10,000-Path Monte Carlo Value-at-Risk (VaR & CVaR)": """# 10,000-Path Monte Carlo Simulation with 95% & 99% VaR
+var_res = run_monte_carlo_var(initial_value=1000.0, volatility=0.08, num_paths=10000)
+print(f"Mean Forecast:    {var_res.mean_terminal_value:,.1f}")
+print(f"95% Value-at-Risk:{var_res.var_95_pct:.2f}%")
+print(f"99% Value-at-Risk:{var_res.var_99_pct:.2f}%")
+print(f"Expected Shortfall (CVaR): {var_res.cvar_95_pct:.2f}%")
+result = var_res.p50_median
+""",
+            "Dynamic Compound Growth Rate (CAGR)": """# Dynamic CAGR Attribution
+begin_val = 500.0
+end_val = 900.0
+years = 4
+cagr = ((end_val / begin_val) ** (1.0 / years) - 1.0) * 100.0
+print(f"Computed CAGR over {years} years: {cagr:.2f}%")
+result = round(cagr, 2)
+""",
+            "Custom Sensitivity Simulation": """# Custom Sensitivity Table
+base = 900.0
+shocks = [-0.15, -0.10, -0.05, 0.0, 0.05, 0.10]
+table = [{"shock_pct": s*100, "projected_rev": base * (1 + s)} for s in shocks]
+df = pd.DataFrame(table)
+print("Sensitivity Schedule:")
+print(df)
+result = df.to_dict(orient="records")
+"""
+        }
+
+        user_code = st.text_area("Python Code", value=default_codes.get(template_choice, ""), height=180)
+        run_code = st.button("⚡ Execute Code in Secure Sandbox", type="primary", key="btn_run_code")
+
+        if run_code and user_code:
+            exec_res = SandboxedFinancialInterpreter.execute_code(user_code)
+            if exec_res.success:
+                st.success(f"✅ Executed Successfully in {exec_res.execution_time_ms:.2f} ms")
+                if exec_res.stdout:
+                    st.code(exec_res.stdout, language="text")
+                if exec_res.return_value is not None:
+                    st.info(f"**Return Value:** `{exec_res.return_value}`")
+                if exec_res.exported_variables:
+                    with st.expander("Exported Variables"):
+                        st.json(exec_res.exported_variables)
+            else:
+                st.error(f"❌ Execution Blocked: {exec_res.security_violation or 'Execution Error'}")
+                st.code(exec_res.stderr, language="text")
 
 # ==========================================
 # TAB 6: MULTI-AGENT DEBATE & AUTONOMOUS AUDIT COMMITTEE

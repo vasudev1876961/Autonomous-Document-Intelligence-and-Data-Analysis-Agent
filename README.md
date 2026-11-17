@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v4.1.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-12--Module%20UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph%20StateGraph-1C3C3C)](https://github.com/langchain-ai/langgraph)
-[![Tests Passing](https://img.shields.io/badge/Tests-88%2F88%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
+[![Tests Passing](https://img.shields.io/badge/Tests-95%2F95%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
 [![Packaging: PEP 517](https://img.shields.io/badge/Packaging-PEP%20517%20%7C%20pyproject.toml-blue)](pyproject.toml)
 [![Docker Ready](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -234,6 +234,13 @@ adida ground --page 1 --text "Revenue"
 adida ground --page 1 --bbox "50,50,350,120"
 ```
 
+### Discounted Cash Flow (DCF) & 2D Sensitivity Valuation
+Run multi-period DCF valuation with a 2D sensitivity grid across cost of capital (WACC) and perpetual growth rate:
+
+```bash
+adida dcf --fcf 100,115,130,145,160 --wacc 0.09 --growth 0.025
+```
+
 ### Multi-Agent Red-Team Debate Council
 Trigger an adversarial debate between Quant, Lexi-Search, and Adversary specialists:
 
@@ -285,6 +292,9 @@ Interactive Documentation:
 | `POST` | `/api/v1/multimodal/highlight` | Render PDF page with spatial bounding box highlights ([x0, y0, x1, y1]) |
 | `POST` | `/api/v1/multimodal/chart-derender` | Reverse-engineer vector graphics & charts into structured tabular data |
 | `POST` | `/api/v1/multimodal/table-structure` | Resolve hierarchical multi-level headers and spanning cells |
+| `POST` | `/api/v1/interpreter/execute` | Execute arbitrary Python code in isolated sandbox with AST security filtering |
+| `POST` | `/api/v1/interpreter/dcf` | Multi-period DCF valuation with 2D WACC vs Terminal Growth sensitivity matrix |
+| `POST` | `/api/v1/interpreter/monte-carlo-var` | 10,000-path stochastic forward simulation computing 95% & 99% VaR and CVaR |
 | `GET` | `/api/v1/hitl/queue` | List pending Human-in-the-Loop approval requests |
 | `POST` | `/api/v1/hitl/decision` | Submit reviewer approval, rejection, or override |
 | `GET` | `/api/v1/benchmarks/run` | Execute ADI-Bench v1.0 benchmark suite |
@@ -388,6 +398,7 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │   │   └── vector_store.py        # Persistent vector store interface
 │   ├── tools/
 │   │   ├── chart_generation.py    # Matplotlib waterfall & delta visuals
+│   │   ├── code_interpreter.py    # Sandboxed Python interpreter, DCF & 10k Monte Carlo VaR
 │   │   ├── data_cleaning.py       # Data sanitization utilities
 │   │   ├── forensic_auditor.py    # Benford's Law (1st, 2nd, 1st-2nd) & outlier engine
 │   │   ├── numerical_analysis.py  # DuPont ROE decomposition, ratios & period math
@@ -400,7 +411,7 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │       ├── consistency_checks.py  # Contradiction & unit verification
 │       ├── hallucination_guard.py # Real-time proposition reflection guardrail
 │       └── verifier_pipeline.py   # Complete verification audit pipeline
-├── tests/                         # 75 automated unit, integration & forensic tests
+├── tests/                         # 95 automated unit, integration & forensic tests
 ├── app.py                         # Streamlit 12-module Executive Dashboard
 ├── cli.py                         # Unified enterprise command-line tool (adida)
 ├── pyproject.toml                 # Standard PEP 517 build configuration

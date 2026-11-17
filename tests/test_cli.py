@@ -136,6 +136,21 @@ def test_cli_ground(capsys):
     assert "Grounding Snippet:" in captured.out
     assert "Page Dimensions:" in captured.out
 
+def test_cli_dcf(capsys):
+    from cli import cmd_dcf
+    args = MockArgs(
+        fcf="100,115,130,145,160",
+        wacc=0.09,
+        growth=0.025,
+        debt=0.0,
+        shares=1.0
+    )
+    cmd_dcf(args)
+    captured = capsys.readouterr()
+    assert "DISCOUNTED CASH FLOW (DCF) & SENSITIVITY VALUATION" in captured.out
+    assert "Implied Enterprise Value:" in captured.out
+    assert "2D SENSITIVITY MATRIX" in captured.out
+
 def test_cli_benchmark(capsys):
     args = MockArgs()
     cmd_benchmark(args)
