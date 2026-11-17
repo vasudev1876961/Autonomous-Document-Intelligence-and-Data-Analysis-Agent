@@ -559,6 +559,27 @@ def calculate_monte_carlo_var(req: MonteCarloVaRRequest):
     )
     return result.model_dump()
 
+@app.get("/api/v1/sec/filing", tags=["SEC EDGAR & Market Data"])
+def get_sec_filing(ticker: str = "MSFT", year: int = 2024, filing_type: str = "10-K"):
+    """
+    Retrieves parsed SEC EDGAR XBRL company facts and US-GAAP financial statements for a public ticker.
+    """
+    from src.ingestion.edgar_connector import SECEDGARConnector
+    manifest, chunks = SECEDGARConnector.fetch_filing(ticker=ticker, filing_type=filing_type, fiscal_year=year)
+    return {
+        "manifest": manifest.model_dump(),
+        "chunks_generated": len(chunks)
+    }
+
+@app.get("/api/v1/sec/macro-benchmark", tags=["SEC EDGAR & Market Data"])
+def get_macro_benchmark(year: int = 2024):
+    """
+    Returns benchmark macroeconomic metrics (10Y Treasury yield, CPI inflation, GDP growth rate).
+    """
+    from src.ingestion.edgar_connector import SECEDGARConnector
+    macro = SECEDGARConnector.get_macro_benchmark(fiscal_year=year)
+    return macro.model_dump()
+
 @app.get("/api/v1/benchmarks/run", tags=["Evaluation & Benchmarks"])
 def run_benchmarks():
     """Executes the ADI-Bench v1.0 benchmark suite and returns comparative metrics."""

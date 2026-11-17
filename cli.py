@@ -435,6 +435,42 @@ def cmd_dcf(args):
             print(line)
     print("=" * 65 + "\n")
 
+def cmd_edgar(args):
+    """Fetches SEC EDGAR XBRL corporate filings and macro benchmark context."""
+    from src.ingestion.edgar_connector import SECEDGARConnector
+    print("\n" + "=" * 65)
+    print("🏛️ SEC EDGAR & XBRL CORPORATE FINANCIAL CONNECTOR")
+    print("=" * 65)
+    print(f"  • Target Ticker:   {args.ticker.upper()}")
+    print(f"  • Filing Form:     {args.form.upper()}")
+    print(f"  • Fiscal Year:     {args.year}")
+
+    manifest, chunks = SECEDGARConnector.fetch_filing(
+        ticker=args.ticker,
+        filing_type=args.form,
+        fiscal_year=args.year
+    )
+
+    print(f"  • Company Name:    {manifest.company_name} (CIK: {manifest.cik})")
+    print(f"  • XBRL Facts:      {manifest.facts_count} standardized US-GAAP line items")
+
+    print("\n📋 AUDITED INCOME STATEMENT:")
+    for k, v in manifest.income_statement.items():
+        print(f"    - {k:<28}: ${v:>18,.2f} USD")
+
+    print("\n📋 AUDITED BALANCE SHEET:")
+    for k, v in manifest.balance_sheet.items():
+        print(f"    - {k:<28}: ${v:>18,.2f} USD")
+
+    macro = SECEDGARConnector.get_macro_benchmark(args.year)
+    print("\n🌐 MACROECONOMIC BENCHMARK CONTEXT:")
+    print(f"    - 10Y Treasury Benchmark Yield: {macro.risk_free_rate_10y_pct:.2f}%")
+    print(f"    - US Headline CPI Inflation:    {macro.us_cpi_inflation_pct:.2f}%")
+    print(f"    - Real GDP Growth:              {macro.gdp_real_growth_pct:.2f}%")
+    print(f"    - Sector Median Operating Margin:{macro.tech_sector_median_operating_margin_pct:.2f}%")
+    print(f"  • Ingested Chunks for RAG:        {len(chunks)} grounded chunks")
+    print("=" * 65 + "\n")
+
 def cmd_dupont(args):
     """Executes 3-Stage DuPont Analysis with mathematical proof."""
     from src.tools.numerical_analysis import NumericalAnalyzer
@@ -603,6 +639,13 @@ def main():
     p_dcf.add_argument("--debt", type=float, default=0.0, help="Net debt to deduct")
     p_dcf.add_argument("--shares", type=float, default=1.0, help="Shares outstanding for target price")
     p_dcf.set_defaults(func=cmd_dcf)
+
+    # edgar (Pillar 4: SEC EDGAR & Market Data Connectors)
+    p_edgar = subparsers.add_parser("edgar", help="Fetch SEC EDGAR XBRL corporate filings and macro benchmark context")
+    p_edgar.add_argument("--ticker", default="MSFT", help="Stock ticker symbol (e.g. MSFT, AAPL, GOOGL, NVDA)")
+    p_edgar.add_argument("--year", type=int, default=2024, help="Fiscal year to retrieve (default: 2024)")
+    p_edgar.add_argument("--form", default="10-K", help="SEC Form type (10-K, 10-Q, 8-K)")
+    p_edgar.set_defaults(func=cmd_edgar)
 
     # scenario
     p_scenario = subparsers.add_parser("scenario", help="Run counterfactual simulation and risk bounds")

@@ -151,6 +151,20 @@ def test_cli_dcf(capsys):
     assert "Implied Enterprise Value:" in captured.out
     assert "2D SENSITIVITY MATRIX" in captured.out
 
+def test_cli_edgar(capsys):
+    from cli import cmd_edgar
+    args = MockArgs(
+        ticker="MSFT",
+        year=2024,
+        form="10-K"
+    )
+    cmd_edgar(args)
+    captured = capsys.readouterr()
+    assert "SEC EDGAR & XBRL CORPORATE FINANCIAL CONNECTOR" in captured.out
+    assert "Microsoft Corporation" in captured.out
+    assert "MACROECONOMIC BENCHMARK CONTEXT" in captured.out
+    assert "10Y Treasury Benchmark Yield:" in captured.out
+
 def test_cli_benchmark(capsys):
     args = MockArgs()
     cmd_benchmark(args)

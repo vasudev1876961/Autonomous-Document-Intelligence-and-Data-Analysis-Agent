@@ -241,6 +241,17 @@ Run multi-period DCF valuation with a 2D sensitivity grid across cost of capital
 adida dcf --fcf 100,115,130,145,160 --wacc 0.09 --growth 0.025
 ```
 
+### SEC EDGAR & XBRL Corporate Financial Ingestion
+Directly ingest public SEC EDGAR 10-K / 10-Q filings, parse standardized US-GAAP XBRL taxonomies, and cross-reference against macroeconomic benchmarks (10Y Treasury, CPI, GDP):
+
+```bash
+# Ingest Microsoft 2024 10-K filing with macroeconomic context
+adida edgar --ticker MSFT --year 2024 --form 10-K
+
+# Ingest Apple 2024 10-K filing
+adida edgar --ticker AAPL --year 2024 --form 10-K
+```
+
 ### Multi-Agent Red-Team Debate Council
 Trigger an adversarial debate between Quant, Lexi-Search, and Adversary specialists:
 
@@ -295,6 +306,8 @@ Interactive Documentation:
 | `POST` | `/api/v1/interpreter/execute` | Execute arbitrary Python code in isolated sandbox with AST security filtering |
 | `POST` | `/api/v1/interpreter/dcf` | Multi-period DCF valuation with 2D WACC vs Terminal Growth sensitivity matrix |
 | `POST` | `/api/v1/interpreter/monte-carlo-var` | 10,000-path stochastic forward simulation computing 95% & 99% VaR and CVaR |
+| `GET` | `/api/v1/sec/filing` | Retrieve parsed SEC EDGAR XBRL company facts and US-GAAP financial statements |
+| `GET` | `/api/v1/sec/macro-benchmark` | Retrieve macroeconomic benchmark context (10Y yield, CPI inflation, GDP growth) |
 | `GET` | `/api/v1/hitl/queue` | List pending Human-in-the-Loop approval requests |
 | `POST` | `/api/v1/hitl/decision` | Submit reviewer approval, rejection, or override |
 | `GET` | `/api/v1/benchmarks/run` | Execute ADI-Bench v1.0 benchmark suite |

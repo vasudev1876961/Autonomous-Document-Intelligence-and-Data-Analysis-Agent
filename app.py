@@ -1211,6 +1211,45 @@ with tabs[9]:
     else:
         st.info("No documents inspected yet. Launch an investigation to explore chunk provenance.")
 
+    st.markdown("---")
+    st.subheader("🏛️ SEC EDGAR XBRL & Market Data Explorer")
+    st.caption("Ingest public corporate filings (10-K / 10-Q) with US-GAAP XBRL taxonomies and contextual macroeconomic benchmarks.")
+
+    sec_col1, sec_col2, sec_col3 = st.columns(3)
+    with sec_col1:
+        sec_ticker = st.selectbox("Company Ticker", ["MSFT", "AAPL", "GOOGL", "NVDA"], key="sec_ticker_select")
+    with sec_col2:
+        sec_form = st.selectbox("Filing Form", ["10-K", "10-Q"], key="sec_form_select")
+    with sec_col3:
+        sec_year = st.selectbox("Fiscal Year", [2024, 2023, 2022], key="sec_year_select")
+
+    if st.button("📥 Fetch SEC Filing & Macro Context", type="primary", key="btn_fetch_sec"):
+        from src.ingestion.edgar_connector import SECEDGARConnector
+        manifest, chunks = SECEDGARConnector.fetch_filing(ticker=sec_ticker, filing_type=sec_form, fiscal_year=sec_year)
+        macro = SECEDGARConnector.get_macro_benchmark(fiscal_year=sec_year)
+
+        st.success(f"Successfully retrieved **{manifest.company_name}** ({manifest.ticker}) FY{manifest.fiscal_year} {manifest.filing_type} filing with {manifest.facts_count} XBRL facts!")
+
+        m_c1, m_c2, m_c3, m_c4 = st.columns(4)
+        with m_c1:
+            st.metric("10Y Treasury Yield", f"{macro.risk_free_rate_10y_pct:.2f}%")
+        with m_c2:
+            st.metric("CPI Inflation", f"{macro.us_cpi_inflation_pct:.2f}%")
+        with m_c3:
+            st.metric("Real GDP Growth", f"{macro.gdp_real_growth_pct:.2f}%")
+        with m_c4:
+            st.metric("Sector Median Margin", f"{macro.sector_median_operating_margin_pct:.2f}%")
+
+        stmt_col1, stmt_col2 = st.columns(2)
+        with stmt_col1:
+            st.markdown("##### 📋 Audited Income Statement")
+            inc_df = pd.DataFrame([{"Metric": k, "Value (USD)": f"${v:,.2f}"} for k, v in manifest.income_statement.items()])
+            st.dataframe(inc_df, use_container_width=True, hide_index=True)
+        with stmt_col2:
+            st.markdown("##### 📋 Audited Balance Sheet")
+            bs_df = pd.DataFrame([{"Metric": k, "Value (USD)": f"${v:,.2f}"} for k, v in manifest.balance_sheet.items()])
+            st.dataframe(bs_df, use_container_width=True, hide_index=True)
+
 # ==========================================
 # TAB 11: ENTERPRISE API & SYSTEM STATUS
 # ==========================================
@@ -1231,7 +1270,14 @@ with tabs[10]:
         |---|---|---|
         | `GET` | `/health` | System health check & active database indicator |
         | `POST` | `/api/v1/investigate` | Autonomous investigation runner |
+        | `POST` | `/api/v1/agent/committee-debate` | 5-Agent Adversarial Consensus Committee |
         | `POST` | `/api/v1/scenarios/simulate` | What-if simulation, sensitivity & Monte Carlo |
+        | `POST` | `/api/v1/interpreter/dcf` | DCF Valuation & 2D sensitivity matrix |
+        | `POST` | `/api/v1/interpreter/monte-carlo-var` | 10,000-path stochastic Monte Carlo VaR |
+        | `GET` | `/api/v1/sec/filing` | SEC EDGAR XBRL corporate statement ingestion |
+        | `GET` | `/api/v1/sec/macro-benchmark` | Macroeconomic benchmark context (10Y, CPI, GDP) |
+        | `POST` | `/api/v1/multimodal/highlight` | PDF bounding-box spatial visual grounding |
+        | `POST` | `/api/v1/multimodal/chart-derender` | Visual chart reverse-engineering to data |
         | `POST` | `/api/v1/debate` | Multi-Agent Red-Team Debate Council |
         | `GET` | `/api/v1/hitl/queue` | List pending human approvals |
         | `POST` | `/api/v1/hitl/decision` | Submit human override / approval |

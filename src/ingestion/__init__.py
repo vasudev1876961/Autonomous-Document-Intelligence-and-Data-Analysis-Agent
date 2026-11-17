@@ -6,6 +6,13 @@ from src.ingestion.ocr_layout_parser import LayoutParser, LayoutBlock, PageLayou
 from src.ingestion.visual_grounding import BoundingBox, VisualGroundingResult, VisualGroundingEngine
 from src.ingestion.chart_derenderer import ChartDataPoint, ChartDeRenderResult, ChartDeRenderer
 from src.ingestion.table_structure import StructuredTableCell, RecognizedTable, ComplexTableRecognizer
+from src.ingestion.edgar_connector import (
+    SECFilingType,
+    XBRLFactItem,
+    SECFilingManifest,
+    MacroBenchmarkData,
+    SECEDGARConnector,
+)
 
 __all__ = [
     "DocumentMetadata",
@@ -28,4 +35,9 @@ __all__ = [
     "StructuredTableCell",
     "RecognizedTable",
     "ComplexTableRecognizer",
+    "SECFilingType",
+    "XBRLFactItem",
+    "SECFilingManifest",
+    "MacroBenchmarkData",
+    "SECEDGARConnector",
 ]
