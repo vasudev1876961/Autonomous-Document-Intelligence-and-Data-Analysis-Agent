@@ -364,6 +364,41 @@ def cmd_benchmark(args):
     print(f"  • Recovery Success Rate (RSR):      {proposed.recovery_success_rate:.1f}% vs {baseline.recovery_success_rate:.1f}%")
     print("=" * 65 + "\n")
 
+def cmd_ground(args):
+    """Highlights exact coordinates on a PDF page and exports a visual evidence snippet."""
+    from src.ingestion.visual_grounding import VisualGroundingEngine
+    from config.settings import settings
+    pdf_path = Path(args.file) if args.file else (settings.sample_docs_dir / "Quarterly_Report.pdf")
+    print("\n" + "=" * 65)
+    print("📍 MULTIMODAL SPATIAL VISUAL GROUNDING")
+    print("=" * 65)
+    print(f"  • Source PDF:      {pdf_path.name}")
+    print(f"  • Page Number:     {args.page}")
+
+    bboxes = []
+    if args.text:
+        print(f"  • Text Query:      '{args.text}'")
+        bboxes = VisualGroundingEngine.find_text_coordinates(pdf_path, args.page, args.text)
+        print(f"  • Matches Found:   {len(bboxes)} occurrences")
+    elif args.bbox:
+        coords = [float(c) for c in args.bbox.split(",")]
+        bboxes = [(coords[0], coords[1], coords[2], coords[3])]
+    else:
+        bboxes = [(50.0, 50.0, 350.0, 120.0)]
+
+    out_file = settings.outputs_dir / "charts" / f"grounding_snippet_p{args.page}.png"
+    res = VisualGroundingEngine.highlight_bboxes_on_page(
+        pdf_path=pdf_path,
+        page_number=args.page,
+        bboxes=bboxes,
+        output_path=out_file
+    )
+    print(f"  • Grounding Snippet: {res.highlighted_image_path}")
+    print(f"  • Page Dimensions:   {res.page_width:.1f} x {res.page_height:.1f} pt")
+    if res.matched_text:
+        print(f"  • Grounded Snippet:  \"{res.matched_text[:80]}...\"")
+    print("=" * 65 + "\n")
+
 def cmd_dupont(args):
     """Executes 3-Stage DuPont Analysis with mathematical proof."""
     from src.tools.numerical_analysis import NumericalAnalyzer
@@ -515,6 +550,14 @@ def main():
     p_comm.add_argument("--assets", type=float, help="Total Assets for DuPont")
     p_comm.add_argument("--equity", type=float, help="Total Equity for DuPont")
     p_comm.set_defaults(func=cmd_committee)
+
+    # ground (Pillar 2: Multimodal Visual Grounding)
+    p_ground = subparsers.add_parser("ground", help="Highlight exact coordinates on a PDF page and export evidence image")
+    p_ground.add_argument("--file", help="Path to PDF file")
+    p_ground.add_argument("--page", type=int, default=1, help="Page number to inspect (1-indexed)")
+    p_ground.add_argument("--bbox", help="Comma-separated bounding box x0,y0,x1,y1")
+    p_ground.add_argument("--text", help="Text string to find and highlight")
+    p_ground.set_defaults(func=cmd_ground)
 
     # scenario
     p_scenario = subparsers.add_parser("scenario", help="Run counterfactual simulation and risk bounds")

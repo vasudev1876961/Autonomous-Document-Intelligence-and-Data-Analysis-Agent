@@ -33,6 +33,10 @@ class SourceLocation(BaseModel):
     table_id: Optional[str] = None
     section_heading: Optional[str] = None
     row_index: Optional[int] = None
+    bbox: Optional[tuple[float, float, float, float]] = None  # (x0, y0, x1, y1)
+    page_width: Optional[float] = None
+    page_height: Optional[float] = None
+    confidence: Optional[float] = 1.0
 
     def to_citation_str(self) -> str:
         parts = [self.file_name]
@@ -44,6 +48,8 @@ class SourceLocation(BaseModel):
             parts.append(f"Cells {self.cell_range}")
         if self.section_heading:
             parts.append(f"Section '{self.section_heading}'")
+        if self.bbox is not None:
+            parts.append(f"BBox [{self.bbox[0]:.1f}, {self.bbox[1]:.1f}, {self.bbox[2]:.1f}, {self.bbox[3]:.1f}]")
         return ", ".join(parts)
 
 class DocumentMetadata(BaseModel):

@@ -122,6 +122,20 @@ def test_cli_committee(capsys):
     assert "CHIEF RISK OFFICER CONSENSUS ADJUDICATION" in captured.out
     assert "Consensus Reached:" in captured.out
 
+def test_cli_ground(capsys):
+    from cli import cmd_ground
+    args = MockArgs(
+        file=None,
+        page=1,
+        bbox="50,50,300,100",
+        text=None
+    )
+    cmd_ground(args)
+    captured = capsys.readouterr()
+    assert "MULTIMODAL SPATIAL VISUAL GROUNDING" in captured.out
+    assert "Grounding Snippet:" in captured.out
+    assert "Page Dimensions:" in captured.out
+
 def test_cli_benchmark(capsys):
     args = MockArgs()
     cmd_benchmark(args)

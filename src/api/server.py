@@ -105,6 +105,20 @@ class CommitteeDebateRequest(BaseModel):
     financial_ratios_data: Optional[dict[str, float]] = Field(default=None, description="Corporate financial ratios input.")
     disagreement_threshold: float = Field(default=0.15, ge=0.01, le=0.50, description="Disagreement tolerance before HITL escalation (default: 0.15 = 15%).")
 
+class HighlightGroundingRequest(BaseModel):
+    file_path: Optional[str] = Field(default=None, description="Path to PDF file. Defaults to sample Quarterly_Report.pdf.")
+    page_number: int = Field(default=1, ge=1)
+    bboxes: Optional[list[tuple[float, float, float, float]]] = Field(default=None, description="List of (x0, y0, x1, y1) bounding boxes to highlight.")
+    query_text: Optional[str] = Field(default=None, description="Text string to search and highlight automatically.")
+
+class ChartDeRenderRequest(BaseModel):
+    file_path: Optional[str] = Field(default=None, description="Path to PDF file.")
+    page_number: int = Field(default=1, ge=1)
+
+class TableStructureRequest(BaseModel):
+    raw_rows: list[list[str]] = Field(description="Raw extracted matrix of table rows and cells.")
+    page_number: int = Field(default=1, ge=1)
+
 # ----------------- Endpoints -----------------
 
 @app.get("/health", tags=["System"])
@@ -430,6 +444,58 @@ def submit_hitl_decision(decision_req: HitlDecisionRequest):
         "decision": decision_req.decision,
         "result": res
     }
+
+@app.post("/api/v1/multimodal/highlight", tags=["Multimodal Document AI"])
+def highlight_grounding(req: HighlightGroundingRequest):
+    """
+    Renders high-resolution PDF page with exact bounding box highlights ([x0, y0, x1, y1])
+    or automatically searches and highlights query text occurrences.
+    """
+    from src.ingestion.visual_grounding import VisualGroundingEngine
+    pdf_path = Path(req.file_path) if req.file_path else (settings.sample_docs_dir / "Quarterly_Report.pdf")
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail=f"PDF file not found: {pdf_path}")
+
+    boxes = req.bboxes or []
+    if not boxes and req.query_text:
+        boxes = VisualGroundingEngine.find_text_coordinates(pdf_path, req.page_number, req.query_text)
+
+    if not boxes:
+        boxes = [(50.0, 50.0, 300.0, 100.0)]
+
+    out_file = settings.outputs_dir / "charts" / f"grounding_p{req.page_number}_{uuid.uuid4().hex[:6]}.png"
+    result = VisualGroundingEngine.highlight_bboxes_on_page(
+        pdf_path=pdf_path,
+        page_number=req.page_number,
+        bboxes=boxes,
+        output_path=out_file
+    )
+    return result.model_dump()
+
+@app.post("/api/v1/multimodal/chart-derender", tags=["Multimodal Document AI"])
+def derender_charts(req: ChartDeRenderRequest):
+    """
+    De-renders visual vector charts and plots from a PDF page into structured JSON/tabular series.
+    """
+    from src.ingestion.chart_derenderer import ChartDeRenderer
+    pdf_path = Path(req.file_path) if req.file_path else (settings.sample_docs_dir / "Quarterly_Report.pdf")
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail=f"PDF file not found: {pdf_path}")
+
+    charts = ChartDeRenderer.de_render_page_charts(pdf_path, req.page_number)
+    return {"charts_found": len(charts), "charts": [c.model_dump() for c in charts]}
+
+@app.post("/api/v1/multimodal/table-structure", tags=["Multimodal Document AI"])
+def recognize_table_structure(req: TableStructureRequest):
+    """
+    Cleans raw table rows, resolving hierarchical headers, empty spanning cells, and merged layouts.
+    """
+    from src.ingestion.table_structure import ComplexTableRecognizer
+    rec = ComplexTableRecognizer.process_raw_table(
+        raw_rows=req.raw_rows,
+        page_number=req.page_number
+    )
+    return rec.model_dump()
 
 @app.get("/api/v1/benchmarks/run", tags=["Evaluation & Benchmarks"])
 def run_benchmarks():

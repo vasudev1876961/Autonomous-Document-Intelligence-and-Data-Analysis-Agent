@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v4.1.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-12--Module%20UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph%20StateGraph-1C3C3C)](https://github.com/langchain-ai/langgraph)
-[![Tests Passing](https://img.shields.io/badge/Tests-81%2F81%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
+[![Tests Passing](https://img.shields.io/badge/Tests-88%2F88%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
 [![Packaging: PEP 517](https://img.shields.io/badge/Packaging-PEP%20517%20%7C%20pyproject.toml-blue)](pyproject.toml)
 [![Docker Ready](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -223,6 +223,17 @@ adida committee --goal "Audit corporate financial integrity and return on equity
 adida committee --goal "Reconcile quarterly disclosures" --disagreement-threshold 0.10
 ```
 
+### Multimodal Spatial Visual Grounding
+Highlight exact pixel bounding boxes ([x0, y0, x1, y1]) on PDF pages and export rendered visual evidence snippets:
+
+```bash
+# Locate and highlight text on a specific PDF page
+adida ground --page 1 --text "Revenue"
+
+# Custom bounding box highlight [x0, y0, x1, y1]
+adida ground --page 1 --bbox "50,50,350,120"
+```
+
 ### Multi-Agent Red-Team Debate Council
 Trigger an adversarial debate between Quant, Lexi-Search, and Adversary specialists:
 
@@ -271,6 +282,9 @@ Interactive Documentation:
 | `POST` | `/api/v1/scenarios/simulate` | What-if simulation, sensitivity curve & Monte Carlo |
 | `POST` | `/api/v1/debate` | Multi-Agent Red-Team Debate Council |
 | `POST` | `/api/v1/agent/committee-debate` | 5-Agent Autonomous Audit Committee (Adversarial Swarm with >15% HITL Trigger) |
+| `POST` | `/api/v1/multimodal/highlight` | Render PDF page with spatial bounding box highlights ([x0, y0, x1, y1]) |
+| `POST` | `/api/v1/multimodal/chart-derender` | Reverse-engineer vector graphics & charts into structured tabular data |
+| `POST` | `/api/v1/multimodal/table-structure` | Resolve hierarchical multi-level headers and spanning cells |
 | `GET` | `/api/v1/hitl/queue` | List pending Human-in-the-Loop approval requests |
 | `POST` | `/api/v1/hitl/decision` | Submit reviewer approval, rejection, or override |
 | `GET` | `/api/v1/benchmarks/run` | Execute ADI-Bench v1.0 benchmark suite |
@@ -347,6 +361,7 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │   │   ├── approval.py            # Approval request schemas & risk levels
 │   │   └── review_queue.py        # Stateful HITL escalation queue
 │   ├── ingestion/
+│   │   ├── chart_derenderer.py    # Vector graphics & chart-to-data reverse-engineering
 │   │   ├── csv_parser.py          # Delimited tabular extraction
 │   │   ├── docx_parser.py         # Word document parser
 │   │   ├── excel_parser.py        # Multi-sheet Excel workbook parser
@@ -355,7 +370,9 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │   │   ├── manifest.py            # Ingestion manager & deduplication coordinator
 │   │   ├── metadata.py            # Provenance schemas (SourceLocation, Chunks)
 │   │   ├── ocr_layout_parser.py   # PyMuPDF spatial bounding-box & OCR fallback
-│   │   └── pdf_parser.py          # Text & table PDF extraction
+│   │   ├── pdf_parser.py          # Text & table PDF extraction with BBox & charts
+│   │   ├── table_structure.py     # Complex spanning & hierarchical table recognizer
+│   │   └── visual_grounding.py    # Spatial bounding box highlighter & snippet renderer
 │   ├── memory/
 │   │   ├── provenance.py          # Source citation tracking
 │   │   ├── sqlite_store.py        # Relational persistence store (WAL mode)
