@@ -259,6 +259,17 @@ adida edgar --ticker MSFT --year 2024 --form 10-K
 adida edgar --ticker AAPL --year 2024 --form 10-K
 ```
 
+### Merkle Tree Regulatory Audit Ledger & Inclusion Proofs
+Generate cryptographic Merkle root hashes and light-client inclusion proofs for SEC Rule 17a-4 and SOC 2 Type II compliance:
+
+```bash
+# Inspect runtime Merkle ledger, root hash, and sample inclusion proof
+adida merkle
+
+# Offline light-client inclusion proof verifier
+adida merkle-verify --proof outputs/sample_proof.json
+```
+
 ### Multi-Agent Red-Team Debate Council
 Trigger an adversarial debate between Quant, Lexi-Search, and Adversary specialists:
 
@@ -305,6 +316,10 @@ Interactive Documentation:
 | `POST` | `/api/v1/analytics/financial-ratios` | Profitability, liquidity, and solvency ratio analysis |
 | `POST` | `/api/v1/knowledge-graph/causal-shock` | Causal graph operational shock propagation simulation |
 | `POST` | `/api/v1/verification/verify-audit-pack`| Cryptographic SHA-256 audit pack integrity verifier |
+| `GET` | `/api/v1/verification/merkle-ledger`| Export complete append-only Merkle tree ledger and compliance manifest |
+| `POST` | `/api/v1/verification/merkle-append`| Cryptographically seal and append an audited event into the Merkle tree |
+| `GET` | `/api/v1/verification/merkle-proof/{leaf_index}`| Generate RFC 6962 light-client inclusion proof for specific leaf |
+| `POST` | `/api/v1/verification/merkle-verify`| Offline validator for cryptographic Merkle inclusion proofs |
 | `POST` | `/api/v1/verification/hallucination-guard`| Real-time claim grounding & faithfulness audit |
 | `POST` | `/api/v1/scenarios/simulate` | What-if simulation, sensitivity curve & Monte Carlo |
 | `POST` | `/api/v1/debate` | Multi-Agent Red-Team Debate Council |

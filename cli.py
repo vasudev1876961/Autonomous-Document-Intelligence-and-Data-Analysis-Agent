@@ -554,6 +554,85 @@ def cmd_verify_pack(args):
             print(f"  • Recomputed Hash:     {res.get('recomputed_sha256')}")
     print("=" * 65 + "\n")
 
+def cmd_merkle(args):
+    """Inspects or builds a regulatory Merkle Tree Audit Ledger with inclusion proofs."""
+    from src.verification.merkle_ledger import MerkleAuditLedger, MerkleAuditEventType
+
+    print("\n" + "=" * 65)
+    print("🌳 MERKLE TREE REGULATORY AUDIT LEDGER (SEC RULE 17a-4 / SOC 2)")
+    print("=" * 65)
+
+    ledger = MerkleAuditLedger(ledger_id="adida-audit-ledger")
+    ledger.append_event(
+        MerkleAuditEventType.USER_QUERY_SUBMITTED,
+        actor="lead_analyst",
+        payload_data={"goal": "Audit financial integrity and DuPont ROE"}
+    )
+    ledger.append_event(
+        MerkleAuditEventType.DOCUMENT_INGESTED,
+        actor="ingestion_pipeline",
+        payload_data={"file": "10-K_FY2024.pdf", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+    )
+    ledger.append_event(
+        MerkleAuditEventType.TOOL_EXECUTION_COMPUTED,
+        actor="dupont_engine",
+        payload_data={"roe_pct": 19.37, "is_proven": True}
+    )
+    ledger.append_event(
+        MerkleAuditEventType.REPORT_CERTIFIED,
+        actor="chief_risk_officer",
+        payload_data={"verdict": "CERTIFIED", "confidence": 0.95}
+    )
+
+    manifest = ledger.export_ledger_manifest()
+    root_hash = manifest["merkle_root_hash"]
+    print(f"  • Ledger ID:              {ledger.ledger_id}")
+    print(f"  • Total Leaves:           {len(ledger)} cryptographically sealed events")
+    print(f"  • Merkle Root Hash:       {root_hash}")
+    print(f"  • Tamper Integrity Check: {'VERIFIED TAMPER-FREE' if manifest['is_tamper_free'] else 'CORRUPTED'}")
+    print("  • Compliance Guarantees:")
+    print(f"      - SEC Rule 17a-4:     {manifest['regulatory_compliance']['sec_rule_17a_4']}")
+    print(f"      - SOC 2 Type II:      {manifest['regulatory_compliance']['soc2_type_ii']}")
+    print(f"      - ISO 27001:          {manifest['regulatory_compliance']['iso_27001']}")
+
+    proof = ledger.generate_inclusion_proof(0)
+    is_valid = MerkleAuditLedger.verify_inclusion_proof(proof)
+    print(f"\n  • Sample Light-Client Proof (Leaf 0: {proof.event_type.value}):")
+    print(f"      - Leaf Hash:          {proof.leaf_hash}")
+    print(f"      - Proof Path Depth:   {len(proof.proof_path)} folding steps")
+    print(f"      - Cryptographic Match:{'VERIFIED VALID (Matches Merkle Root)' if is_valid else 'FAILED'}")
+    print("=" * 65 + "\n")
+
+def cmd_merkle_verify(args):
+    """Verifies a light-client cryptographic inclusion proof JSON file offline."""
+    import json
+    from src.verification.merkle_ledger import MerkleAuditLedger, MerkleInclusionProof
+
+    print("\n" + "=" * 65)
+    print("🔍 LIGHT-CLIENT MERKLE INCLUSION PROOF VERIFIER")
+    print("=" * 65)
+
+    proof_file = Path(args.proof)
+    if not proof_file.exists():
+        print(f"  • Error: Proof file '{args.proof}' not found.")
+        print("=" * 65 + "\n")
+        return
+
+    with open(proof_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    proof = MerkleInclusionProof(**data)
+    is_valid = MerkleAuditLedger.verify_inclusion_proof(proof)
+
+    print(f"  • Leaf Index:             {proof.leaf_index}")
+    print(f"  • Event Type:             {proof.event_type.value}")
+    print(f"  • Actor:                  {proof.actor}")
+    print(f"  • Leaf Hash:              {proof.leaf_hash}")
+    print(f"  • Target Root Hash:       {proof.root_hash}")
+    print(f"  • Proof Steps:            {len(proof.proof_path)} sibling branches")
+    print(f"  • Verification Verdict:   {'[PASSED] LIGHT-CLIENT PROOF VALID' if is_valid else '[FAILED] PROOF TAMPERED OR INVALID'}")
+    print("=" * 65 + "\n")
+
 def main():
     parser = argparse.ArgumentParser(
         prog="adida",
@@ -646,6 +725,15 @@ def main():
     p_edgar.add_argument("--year", type=int, default=2024, help="Fiscal year to retrieve (default: 2024)")
     p_edgar.add_argument("--form", default="10-K", help="SEC Form type (10-K, 10-Q, 8-K)")
     p_edgar.set_defaults(func=cmd_edgar)
+
+    # merkle (Pillar 6: Merkle Regulatory Audit Ledger)
+    p_merkle = subparsers.add_parser("merkle", help="Inspect or generate cryptographic Merkle regulatory audit ledger")
+    p_merkle.set_defaults(func=cmd_merkle)
+
+    # merkle-verify (Pillar 6: Offline Light-Client Inclusion Proof Verifier)
+    p_merkle_verify = subparsers.add_parser("merkle-verify", help="Verify a cryptographic Merkle inclusion proof offline")
+    p_merkle_verify.add_argument("--proof", required=True, help="Path to inclusion proof JSON file")
+    p_merkle_verify.set_defaults(func=cmd_merkle_verify)
 
     # scenario
     p_scenario = subparsers.add_parser("scenario", help="Run counterfactual simulation and risk bounds")

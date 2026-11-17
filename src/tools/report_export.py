@@ -420,6 +420,52 @@ class ReportExporter:
             "knowledge_graph_summary": getattr(state, "knowledge_graph_summary", None)
         }
 
+        # Build Cryptographic Merkle Regulatory Audit Ledger (SEC Rule 17a-4 / SOC 2 Type II)
+        from src.verification.merkle_ledger import MerkleAuditLedger, MerkleAuditEventType
+        task_ledger = MerkleAuditLedger(ledger_id=f"ledger-{pack_data['task_id']}")
+
+        # 1. User Query
+        if pack_data["user_goal"]:
+            task_ledger.append_event(
+                MerkleAuditEventType.USER_QUERY_SUBMITTED,
+                actor="analyst_user",
+                payload_data={"goal": pack_data["user_goal"]}
+            )
+
+        # 2. Documents Ingested
+        for doc in pack_data["document_manifest"]:
+            task_ledger.append_event(
+                MerkleAuditEventType.DOCUMENT_INGESTED,
+                actor="ingestion_pipeline",
+                payload_data=doc
+            )
+
+        # 3. Tool Calculations
+        if pack_data["deterministic_math_ledger"]:
+            task_ledger.append_event(
+                MerkleAuditEventType.TOOL_EXECUTION_COMPUTED,
+                actor="numerical_analyzer",
+                payload_data=pack_data["deterministic_math_ledger"]
+            )
+
+        # 4. Report Certification
+        task_ledger.append_event(
+            MerkleAuditEventType.REPORT_CERTIFIED,
+            actor="chief_risk_officer",
+            payload_data={"status": pack_data["status"], "task_id": pack_data["task_id"]}
+        )
+
+        merkle_manifest = task_ledger.export_ledger_manifest()
+        sample_proof = task_ledger.generate_inclusion_proof(0).model_dump() if len(task_ledger) > 0 else None
+
+        pack_data["merkle_regulatory_ledger"] = {
+            "merkle_root_hash": merkle_manifest["merkle_root_hash"],
+            "total_leaves": merkle_manifest["total_leaves"],
+            "is_tamper_free": merkle_manifest["is_tamper_free"],
+            "regulatory_compliance": merkle_manifest["regulatory_compliance"],
+            "sample_inclusion_proof": sample_proof
+        }
+
         # Calculate canonical SHA-256 digest of core payload
         canonical_json = json.dumps(pack_data, sort_keys=True, ensure_ascii=False)
         digest = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
@@ -428,6 +474,7 @@ class ReportExporter:
             "signature_algorithm": "SHA-256",
             "canonicalization": "RFC 8785 JSON Canonicalization Scheme",
             "payload_sha256": digest,
+            "merkle_root_hash": merkle_manifest["merkle_root_hash"],
             "system_version": "ADIDA v4.1 Enterprise",
             "verification_status": "SIGNATURE_ATTACHED"
         }

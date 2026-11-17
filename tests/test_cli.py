@@ -165,6 +165,36 @@ def test_cli_edgar(capsys):
     assert "MACROECONOMIC BENCHMARK CONTEXT" in captured.out
     assert "10Y Treasury Benchmark Yield:" in captured.out
 
+def test_cli_merkle(capsys):
+    from cli import cmd_merkle
+    args = MockArgs()
+    cmd_merkle(args)
+    captured = capsys.readouterr()
+    assert "MERKLE TREE REGULATORY AUDIT LEDGER" in captured.out
+    assert "Merkle Root Hash:" in captured.out
+    assert "SEC Rule 17a-4:" in captured.out
+    assert "VERIFIED VALID (Matches Merkle Root)" in captured.out
+
+def test_cli_merkle_verify(capsys, tmp_path):
+    import json
+    from cli import cmd_merkle_verify
+    from src.verification.merkle_ledger import MerkleAuditLedger, MerkleAuditEventType
+
+    ledger = MerkleAuditLedger(ledger_id="cli-verify-test")
+    ledger.append_event(MerkleAuditEventType.USER_QUERY_SUBMITTED, "user", {"test": True})
+    ledger.append_event(MerkleAuditEventType.REPORT_CERTIFIED, "cro", {"status": "CERTIFIED"})
+
+    proof = ledger.generate_inclusion_proof(0)
+    proof_path = tmp_path / "sample_proof.json"
+    with open(proof_path, "w", encoding="utf-8") as f:
+        json.dump(proof.model_dump(), f)
+
+    args = MockArgs(proof=str(proof_path))
+    cmd_merkle_verify(args)
+    captured = capsys.readouterr()
+    assert "LIGHT-CLIENT MERKLE INCLUSION PROOF VERIFIER" in captured.out
+    assert "[PASSED] LIGHT-CLIENT PROOF VALID" in captured.out
+
 def test_cli_benchmark(capsys):
     args = MockArgs()
     cmd_benchmark(args)

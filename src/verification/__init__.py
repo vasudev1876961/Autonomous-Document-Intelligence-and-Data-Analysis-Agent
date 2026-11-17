@@ -3,6 +3,14 @@ from src.verification.citation_checks import CitationVerifier, CitationCheckResu
 from src.verification.consistency_checks import ConsistencyVerifier, ConsistencyCheckResult
 from src.verification.verifier_pipeline import VerificationPipeline, VerificationAuditReport
 from src.verification.hallucination_guard import HallucinationGuard, PropositionAudit, HallucinationGuardResult
+from src.verification.merkle_ledger import (
+    MerkleAuditEventType,
+    MerkleAuditLeaf,
+    MerkleProofStep,
+    MerkleInclusionProof,
+    MerkleAuditLedger,
+    global_audit_ledger
+)
 
 __all__ = [
     "CalculationVerifier",
@@ -16,5 +24,11 @@ __all__ = [
     "HallucinationGuard",
     "PropositionAudit",
     "HallucinationGuardResult",
+    "MerkleAuditEventType",
+    "MerkleAuditLeaf",
+    "MerkleProofStep",
+    "MerkleInclusionProof",
+    "MerkleAuditLedger",
+    "global_audit_ledger",
 ]
 

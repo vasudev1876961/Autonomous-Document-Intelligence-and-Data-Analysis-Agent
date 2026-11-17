@@ -634,6 +634,66 @@ def get_observability_stats():
     """
     return prometheus_metrics.get_summary()
 
+class MerkleAppendRequest(BaseModel):
+    event_type: str = "TOOL_EXECUTION_COMPUTED"
+    actor: str = "quantitative_analyst"
+    payload_data: dict[str, Any] = Field(default_factory=dict)
+
+@app.get("/api/v1/verification/merkle-ledger", tags=["Merkle Regulatory Audit Ledger"])
+def get_merkle_ledger():
+    """
+    Returns the complete append-only Merkle ledger manifest, current root hash,
+    and compliance certifications (SEC Rule 17a-4, SOC 2 Type II, ISO 27001).
+    """
+    from src.verification.merkle_ledger import global_audit_ledger
+    return global_audit_ledger.export_ledger_manifest()
+
+@app.post("/api/v1/verification/merkle-append", tags=["Merkle Regulatory Audit Ledger"])
+def append_merkle_event(req: MerkleAppendRequest):
+    """
+    Appends an audited event to the Merkle tree and returns the updated leaf node.
+    """
+    from src.verification.merkle_ledger import global_audit_ledger, MerkleAuditEventType
+    leaf = global_audit_ledger.append_event(
+        event_type=req.event_type,
+        actor=req.actor,
+        payload_data=req.payload_data
+    )
+    return {
+        "leaf": leaf.model_dump(),
+        "updated_root_hash": global_audit_ledger.get_root_hash(),
+        "total_leaves": len(global_audit_ledger)
+    }
+
+@app.get("/api/v1/verification/merkle-proof/{leaf_index}", tags=["Merkle Regulatory Audit Ledger"])
+def get_merkle_proof(leaf_index: int):
+    """
+    Generates a cryptographic inclusion proof for the leaf at leaf_index.
+    """
+    from src.verification.merkle_ledger import global_audit_ledger
+    if leaf_index < 0 or leaf_index >= len(global_audit_ledger):
+        raise HTTPException(status_code=400, detail=f"Leaf index {leaf_index} out of range [0, {len(global_audit_ledger)-1}]")
+    proof = global_audit_ledger.generate_inclusion_proof(leaf_index)
+    return proof.model_dump()
+
+@app.post("/api/v1/verification/merkle-verify", tags=["Merkle Regulatory Audit Ledger"])
+def verify_merkle_proof_endpoint(proof_data: dict[str, Any]):
+    """
+    Validates a cryptographic Merkle inclusion proof offline without requiring full ledger state.
+    """
+    from src.verification.merkle_ledger import MerkleAuditLedger, MerkleInclusionProof
+    try:
+        proof = MerkleInclusionProof(**proof_data)
+        is_valid = MerkleAuditLedger.verify_inclusion_proof(proof)
+        return {
+            "is_valid": is_valid,
+            "leaf_index": proof.leaf_index,
+            "root_hash": proof.root_hash,
+            "status": "VERIFIED_TAMPER_FREE" if is_valid else "PROOF_INVALID_OR_TAMPERED"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid inclusion proof schema: {str(e)}")
+
 @app.get("/api/v1/reports/{report_name}", tags=["Deliverables"])
 def download_report(report_name: str):
     """Downloads an exported markdown or PDF report."""
