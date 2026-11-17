@@ -215,6 +215,85 @@ def cmd_debate(args):
         print(f"  • Requires HITL Review: {session.verdict.requires_hitl}")
     print("=" * 65 + "\n")
 
+def cmd_committee(args):
+    """Executes a 5-Agent Autonomous Financial & Audit Committee debate with adversarial cross-examination."""
+    from src.agent.committee import AutonomousAuditCommittee
+
+    print("\n" + "=" * 65)
+    print("🏛️ AUTONOMOUS FINANCIAL & AUDIT COMMITTEE")
+    print("   5-Agent Adversarial Swarm Consensus Protocol")
+    print("=" * 65)
+    print(f"  • Mandate:                 {args.goal}")
+    print(f"  • Disagreement Tolerance:  {args.disagreement_threshold * 100:.1f}%")
+    print(f"  • Active Committee Personas:")
+    print("      1. Dr. Benford (Forensic Auditor)")
+    print("      2. Quant-Sigma (Quantitative Financial Analyst)")
+    print("      3. Recon-Omni (Cross-Document Reconciler)")
+    print("      4. Devil's Advocate (Adversarial Red-Team Lead)")
+    print("      5. Chief Risk Officer (Synthesizer & Committee Chair)")
+
+    # Construct numbers or period data
+    period_data = {
+        "metric": "Revenue",
+        "p1": args.p1,
+        "p2": args.p2,
+        "p1_name": "Q1",
+        "p2_name": "Q2",
+        "unit": "₹ lakh"
+    }
+    sample_segments = [
+        {"segment": "Segment A", "p1": args.p1 * 0.5, "p2": args.p2 * 0.467},
+        {"segment": "Segment B", "p1": args.p1 * 0.3, "p2": args.p2 * 0.311},
+        {"segment": "Segment C", "p1": args.p1 * 0.2, "p2": args.p2 * 0.222},
+    ]
+
+    dupont_data = None
+    if getattr(args, "dupont", False):
+        dupont_data = {
+            "net_income": getattr(args, "ni", None) or (args.p2 * 0.12),
+            "revenue": args.p2,
+            "total_assets": getattr(args, "assets", None) or (args.p2 * 1.5),
+            "total_equity": getattr(args, "equity", None) or (args.p2 * 0.8)
+        }
+
+    committee = AutonomousAuditCommittee(disagreement_threshold=args.disagreement_threshold)
+    session = committee.convene_committee(
+        task_id="cli_committee",
+        goal=args.goal,
+        period_data=period_data,
+        segment_data=sample_segments,
+        dupont_data=dupont_data
+    )
+
+    print(f"\n⚡ Completed {len(session.debate_rounds)} Structured Rounds across Committee:")
+    for r in session.debate_rounds:
+        print(f"\n  [ROUND {r.round_number} - {r.stage.upper()}] {r.speaker_name} ({r.speaker_role.value}):")
+        for line in r.content.split("\n"):
+            print(f"    {line}")
+        if r.citations:
+            print(f"    ↳ Citations: {', '.join(r.citations)}")
+
+    v = session.verdict
+    print("\n" + "-" * 65)
+    print("📋 CHIEF RISK OFFICER CONSENSUS ADJUDICATION:")
+    print(f"  • Consensus Reached:       {v.consensus_reached}")
+    print(f"  • Consensus Confidence:    {v.consensus_confidence_score * 100:.1f}%")
+    print(f"  • Disagreement Rate:       {v.disagreement_rate * 100:.1f}% (Threshold: {args.disagreement_threshold * 100:.1f}%)")
+    print(f"  • Risk Posture:            {v.risk_posture}")
+    print(f"  • HITL Review Required:    {v.requires_hitl}")
+    if v.hitl_reason:
+        print(f"  • Escalation Rationale:    {v.hitl_reason}")
+    print(f"  • Executive Recommendation:{v.audit_recommendation}")
+    if v.agreed_facts:
+        print("  • Agreed Facts:")
+        for af in v.agreed_facts[:4]:
+            print(f"      ✓ {af}")
+    if v.disputed_claims:
+        print("  • Disputed Claims / Red-Team Objections:")
+        for dc in v.disputed_claims:
+            print(f"      ✗ {dc}")
+    print("=" * 65 + "\n")
+
 def cmd_scenario(args):
     """Executes counterfactual simulation and Monte Carlo risk forecast."""
     from src.tools.numerical_analysis import NumericalAnalyzer
@@ -424,6 +503,18 @@ def main():
     p_debate = subparsers.add_parser("debate", help="Run 4-agent red-team debate council")
     p_debate.add_argument("--goal", default="Explain why revenue declined from Q1 to Q2.", help="Debate resolution topic")
     p_debate.set_defaults(func=cmd_debate)
+
+    # committee (Pillar 1: Autonomous Audit Committee)
+    p_comm = subparsers.add_parser("committee", help="Run 5-agent autonomous financial & audit committee")
+    p_comm.add_argument("--goal", default="Audit financial integrity, earnings performance, and accounting compliance.", help="Committee mandate")
+    p_comm.add_argument("--p1", type=float, default=1000.0, help="Period 1 revenue/metric")
+    p_comm.add_argument("--p2", type=float, default=900.0, help="Period 2 revenue/metric")
+    p_comm.add_argument("--disagreement-threshold", type=float, default=0.15, help="Disagreement tolerance before HITL escalation (default: 0.15 = 15%)")
+    p_comm.add_argument("--dupont", action="store_true", help="Include 3-Stage DuPont ROE calculation")
+    p_comm.add_argument("--ni", type=float, help="Net Income for DuPont")
+    p_comm.add_argument("--assets", type=float, help="Total Assets for DuPont")
+    p_comm.add_argument("--equity", type=float, help="Total Equity for DuPont")
+    p_comm.set_defaults(func=cmd_committee)
 
     # scenario
     p_scenario = subparsers.add_parser("scenario", help="Run counterfactual simulation and risk bounds")

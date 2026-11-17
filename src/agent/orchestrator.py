@@ -24,6 +24,7 @@ from src.reporting.report_builder import ReportBuilder
 from src.retrieval.knowledge_graph import DocumentKnowledgeGraph
 from src.tools.scenario_modeling import ScenarioModelingEngine
 from src.agent.debate import MultiAgentDebateCouncil
+from src.agent.committee import AutonomousAuditCommittee
 
 class AgentOrchestrator:
 
@@ -394,7 +395,7 @@ class AgentOrchestrator:
         return {"scenario_results": scenario_dict}
 
     def _node_conduct_debate(self, state: AgentState) -> dict[str, Any]:
-        """Node 8d: Multi-Agent Red-Team Debate and Consensus Council."""
+        """Node 8d: Multi-Agent Red-Team Debate and Autonomous Audit Committee."""
         council = MultiAgentDebateCouncil()
         debate_sess = council.run_debate(
             goal=state.user_goal,
@@ -403,12 +404,53 @@ class AgentOrchestrator:
             reconciliation=state.reconciliation_summary,
             evidence_chunks=state.retrieved_evidence
         )
-        
+
+        # Autonomous Audit Committee with 5 specialized personas
+        committee = AutonomousAuditCommittee(disagreement_threshold=0.15)
+        period_data = None
+        if state.period_comparison:
+            period_data = {
+                "metric": state.period_comparison.metric_name,
+                "p1": state.period_comparison.period_1_value,
+                "p2": state.period_comparison.period_2_value,
+                "p1_name": state.period_comparison.period_1_name,
+                "p2_name": state.period_comparison.period_2_name,
+                "unit": state.period_comparison.unit,
+            }
+        segment_data = None
+        if state.segment_analysis:
+            segment_data = [
+                {"segment": s.segment_name, "p1": s.period_1_value, "p2": s.period_2_value}
+                for s in state.segment_analysis.segments
+            ]
+
+        source_claims = None
+        if state.reconciliation_summary and state.reconciliation_summary.material_conflicts:
+            # Reconstruct claims from material conflicts
+            source_claims = []
+            for c in state.reconciliation_summary.material_conflicts:
+                source_claims.extend([c.claim_a, c.claim_b])
+
+        comm_sess = committee.convene_committee(
+            task_id=state.task_id,
+            goal=state.user_goal,
+            period_data=period_data,
+            segment_data=segment_data,
+            source_claims=source_claims,
+            evidence_chunks=state.retrieved_evidence
+        )
+
         self.store.log_audit(
             state.task_id, 8, "CONDUCT_DEBATE",
-            f"Multi-Agent Council completed {len(debate_sess.rounds)} rounds (confidence: {debate_sess.verdict.confidence_score*100:.1f}%)"
+            f"Autonomous Audit Committee completed {len(comm_sess.debate_rounds)} rounds "
+            f"(Confidence: {comm_sess.verdict.consensus_confidence_score*100:.1f}%, "
+            f"Disagreement: {comm_sess.verdict.disagreement_rate*100:.1f}%, "
+            f"Posture: {comm_sess.verdict.risk_posture})"
         )
-        return {"debate_session": debate_sess.model_dump()}
+        return {
+            "debate_session": debate_sess.model_dump(),
+            "committee_session": comm_sess.model_dump(),
+        }
 
     def _node_generate_visualizations(self, state: AgentState) -> dict[str, Any]:
         """Node 9: Visual Analytics Rendering."""

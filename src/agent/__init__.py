@@ -19,6 +19,22 @@ from src.agent.debate import (
     ConsensusVerdict,
 )
 
+from src.agent.committee import (
+    AgentRole,
+    FindingRisk,
+    CommitteeFinding,
+    AdversarialChallenge,
+    CommitteeDebateRound,
+    CommitteeVerdict,
+    CommitteeSession,
+    ForensicAuditorAgent,
+    QuantitativeAnalystAgent,
+    CrossDocumentReconcilerAgent,
+    AdversarialRedTeamAgent,
+    ChiefRiskOfficerAgent,
+    AutonomousAuditCommittee,
+)
+
 __all__ = [
     "AgentState",
     "PlanStep",
@@ -38,6 +54,19 @@ __all__ = [
     "DebateSession",
     "DebateMessage",
     "ConsensusVerdict",
+    "AgentRole",
+    "FindingRisk",
+    "CommitteeFinding",
+    "AdversarialChallenge",
+    "CommitteeDebateRound",
+    "CommitteeVerdict",
+    "CommitteeSession",
+    "ForensicAuditorAgent",
+    "QuantitativeAnalystAgent",
+    "CrossDocumentReconcilerAgent",
+    "AdversarialRedTeamAgent",
+    "ChiefRiskOfficerAgent",
+    "AutonomousAuditCommittee",
 ]
 
 

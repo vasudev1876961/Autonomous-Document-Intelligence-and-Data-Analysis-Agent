@@ -103,6 +103,25 @@ def test_cli_debate(capsys):
     assert "MULTI-AGENT RED-TEAM DEBATE COUNCIL" in captured.out
     assert "COUNCIL VERDICT" in captured.out
 
+def test_cli_committee(capsys):
+    from cli import cmd_committee
+    args = MockArgs(
+        goal="Audit corporate financials and return on equity.",
+        p1=1000.0,
+        p2=900.0,
+        disagreement_threshold=0.15,
+        dupont=True,
+        ni=120.0,
+        assets=1500.0,
+        equity=800.0
+    )
+    cmd_committee(args)
+    captured = capsys.readouterr()
+    assert "AUTONOMOUS FINANCIAL & AUDIT COMMITTEE" in captured.out
+    assert "5-Agent Adversarial Swarm Consensus Protocol" in captured.out
+    assert "CHIEF RISK OFFICER CONSENSUS ADJUDICATION" in captured.out
+    assert "Consensus Reached:" in captured.out
+
 def test_cli_benchmark(capsys):
     args = MockArgs()
     cmd_benchmark(args)

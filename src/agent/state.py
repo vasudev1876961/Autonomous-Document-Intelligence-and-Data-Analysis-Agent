@@ -68,6 +68,7 @@ class AgentState(BaseModel):
     knowledge_graph_summary: Optional[dict[str, Any]] = None
     scenario_results: Optional[dict[str, Any]] = None
     debate_session: Optional[dict[str, Any]] = None
+    committee_session: Optional[dict[str, Any]] = None
     forensic_audit: Optional[dict[str, Any]] = None
     hallucination_guard_audit: Optional[dict[str, Any]] = None
 

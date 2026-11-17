@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v4.1.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-12--Module%20UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph%20StateGraph-1C3C3C)](https://github.com/langchain-ai/langgraph)
-[![Tests Passing](https://img.shields.io/badge/Tests-75%2F75%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
+[![Tests Passing](https://img.shields.io/badge/Tests-81%2F81%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
 [![Packaging: PEP 517](https://img.shields.io/badge/Packaging-PEP%20517%20%7C%20pyproject.toml-blue)](pyproject.toml)
 [![Docker Ready](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -34,7 +34,7 @@ Standard Retrieval-Augmented Generation (RAG) models suffer from critical limita
 - **Unverified Assertions:** Generic summarizers invent plausible explanations for missing data instead of explicitly disclosing epistemic uncertainty.
 - **Cross-Document Inconsistencies:** Traditional RAG retrieves isolated chunks without reconciling discrepancies between audited financial filings and preliminary management bulletins.
 
-**ADIDA solves this with an evidence-grounded, multi-agent stateful architecture.** Combining deterministic computational verification, forensic accounting (Benford's Law 1st, 2nd, and First-Two Digits), autonomous causal knowledge graphs (KG-RAG) with shock propagation, 4-agent red-team adversarial debates, and human-in-the-loop (HITL) governance, ADIDA delivers zero-hallucination quantitative intelligence.
+**ADIDA solves this with an evidence-grounded, multi-agent stateful architecture.** Combining deterministic computational verification, forensic accounting (Benford's Law 1st, 2nd, and First-Two Digits), autonomous causal knowledge graphs (KG-RAG) with shock propagation, 5-agent Autonomous Audit Committee adversarial consensus swarm, and human-in-the-loop (HITL) governance, ADIDA delivers zero-hallucination quantitative intelligence.
 
 ---
 
@@ -47,10 +47,10 @@ Standard Retrieval-Augmented Generation (RAG) models suffer from critical limita
 | **Multimodal Ingestion** | Raw unstructured text chunks only | **PyMuPDF bounding-boxes, OCR fallback, OpenPyXL, CSV, JSONPath payloads, and Markdown hierarchy** |
 | **Citation Grounding** | ~52% (Vague or missing page citations) | **100.0%** (SHA-256 tamper-proof cell and bounding-box provenance) |
 | **Cross-Document Discrepancies**| ❌ Ignores conflicting figures across sources | **Automated pairwise reconciliation with configurable materiality thresholds** |
-| **Stress-Testing Findings** | ❌ Single-pass confirmation bias | **4-Agent Red-Team Debate Council (Quant, Lexi, Adversary, Supervisor)** |
+| **Stress-Testing Findings** | ❌ Single-pass confirmation bias | **5-Agent Autonomous Audit Committee (Forensics, Quant, Reconciler, Devil's Advocate, Chief Risk Officer)** |
 | **Causal Modeling** | Surface-level text correlations | **Autonomous Causal Knowledge Graph (KG-RAG), multi-hop paths & operational shock propagation** |
 | **Scenario Modeling** | ❌ Qualitative guesses | **Deterministic what-if overrides, sensitivity curves, Monte Carlo risk bounds** |
-| **Governance & HITL** | ❌ Black-box execution | **Escalation queue with SQLite WAL persistence & approval overrides** |
+| **Governance & HITL** | ❌ Black-box execution | **Escalation queue with SQLite WAL persistence, automated committee triggers when disagreement > 15%** |
 | **Export Deliverables** | Raw markdown text | **Print-ready PDF, Interactive HTML dashboard, and Cryptographically Signed JSON Audit Pack (SHA-256)** |
 
 ---
@@ -78,9 +78,10 @@ ADIDA coordinates five decoupled layers organized within a stateful LangGraph Di
  └──────────────────────────────────────────────┬──────────────────────────────────────────────┘
                                                 │
  ┌──────────────────────────────────────────────▼──────────────────────────────────────────────┐
- │ 3. MULTI-AGENT ADVERSARIAL DEBATE COUNCIL                                                   │
- │  • Quant-Alpha (Calculations)            • Adversary-Prime (Red-Team Auditor)               │
- │  • Lexi-Search (Citation Provenance)     • Supervisor-Chief (Executive Arbiter)             │
+ │ 3. AUTONOMOUS AUDIT COMMITTEE (5-AGENT ADVERSARIAL SWARM)                                  │
+ │  • Dr. Benford (Forensics & Anomaly Engine)  • Quant-Sigma (DuPont ROE & Math Proofs)       │
+ │  • Recon-Omni (Cross-Document Reconciler)    • Devil's Advocate (Red-Team Counter-Theses)   │
+ │  • Chief Risk Officer (CRO Consensus Adjudication & Automated >15% Disagreement HITL Gate) │
  └──────────────────────────────────────────────┬──────────────────────────────────────────────┘
                                                 │
  ┌──────────────────────────────────────────────▼──────────────────────────────────────────────┐
@@ -211,6 +212,17 @@ Verify the tamper-evident SHA-256 digital signature of any exported audit pack:
 python cli.py verify-pack outputs/audit_pack_task_xyz.json
 ```
 
+### Autonomous Financial & Audit Committee (5-Agent Consensus Swarm)
+Convene the 5-Agent Autonomous Audit Committee (Forensics, Quant, Reconciler, Devil's Advocate, and Chief Risk Officer) with automated >15% disagreement escalation:
+
+```bash
+# Full committee review with 3-Stage DuPont ROE calculation
+adida committee --goal "Audit corporate financial integrity and return on equity" --p1 1000 --p2 900 --dupont --ni 120 --assets 1500 --equity 800
+
+# Custom disagreement tolerance (e.g. strict 10% threshold)
+adida committee --goal "Reconcile quarterly disclosures" --disagreement-threshold 0.10
+```
+
 ### Multi-Agent Red-Team Debate Council
 Trigger an adversarial debate between Quant, Lexi-Search, and Adversary specialists:
 
@@ -258,6 +270,7 @@ Interactive Documentation:
 | `POST` | `/api/v1/verification/hallucination-guard`| Real-time claim grounding & faithfulness audit |
 | `POST` | `/api/v1/scenarios/simulate` | What-if simulation, sensitivity curve & Monte Carlo |
 | `POST` | `/api/v1/debate` | Multi-Agent Red-Team Debate Council |
+| `POST` | `/api/v1/agent/committee-debate` | 5-Agent Autonomous Audit Committee (Adversarial Swarm with >15% HITL Trigger) |
 | `GET` | `/api/v1/hitl/queue` | List pending Human-in-the-Loop approval requests |
 | `POST` | `/api/v1/hitl/decision` | Submit reviewer approval, rejection, or override |
 | `GET` | `/api/v1/benchmarks/run` | Execute ADI-Bench v1.0 benchmark suite |
@@ -318,6 +331,7 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 ├── src/
 │   ├── agent/
 │   │   ├── brain.py               # Analytical reasoning & synthesis
+│   │   ├── committee.py           # Autonomous Financial & Audit Committee (5-agent swarm)
 │   │   ├── completion.py          # Task completion evaluator
 │   │   ├── debate.py              # Multi-Agent Red-Team Debate Council
 │   │   ├── orchestrator.py        # LangGraph stateful DAG orchestrator

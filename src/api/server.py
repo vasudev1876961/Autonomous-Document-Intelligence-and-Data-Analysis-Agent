@@ -5,6 +5,7 @@ scenario modeling, human-in-the-loop review queue, and verified report downloads
 """
 from pathlib import Path
 from typing import Any, Optional
+import uuid
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -13,6 +14,7 @@ from config.settings import settings
 from src.agent.orchestrator import AgentOrchestrator
 from src.tools.scenario_modeling import ScenarioModelingEngine
 from src.agent.debate import MultiAgentDebateCouncil
+from src.agent.committee import AutonomousAuditCommittee
 from src.human_review.approval import ApprovalDecision
 from src.human_review.review_queue import ReviewQueue
 from src.evaluation.benchmark_runner import BenchmarkRunner
@@ -89,6 +91,19 @@ class CausalShockRequest(BaseModel):
 
 class VerifyAuditPackRequest(BaseModel):
     audit_pack_path: str = Field(description="Relative or absolute path to the audit pack JSON file.")
+
+class CommitteeDebateRequest(BaseModel):
+    goal: str = Field(
+        default="Audit financial integrity, earnings performance, and accounting compliance.",
+        description="Analytical mandate for the committee."
+    )
+    task_id: Optional[str] = Field(default=None, description="Optional task tracking ID.")
+    numbers: Optional[list[float]] = Field(default=None, description="Array of numerical figures for forensic Benford & duplicate testing.")
+    period_data: Optional[dict[str, Any]] = Field(default=None, description="Period comparison figures with keys 'p1', 'p2', 'metric', 'unit'.")
+    segment_data: Optional[list[dict[str, Any]]] = Field(default=None, description="Segment breakdown records.")
+    dupont_data: Optional[dict[str, float]] = Field(default=None, description="DuPont parameters: net_income, revenue, total_assets, total_equity.")
+    financial_ratios_data: Optional[dict[str, float]] = Field(default=None, description="Corporate financial ratios input.")
+    disagreement_threshold: float = Field(default=0.15, ge=0.01, le=0.50, description="Disagreement tolerance before HITL escalation (default: 0.15 = 15%).")
 
 # ----------------- Endpoints -----------------
 
@@ -351,6 +366,32 @@ def run_debate(goal: Optional[str] = None):
         evidence_chunks=[]
     )
     return debate_session.model_dump()
+
+@app.post("/api/v1/agent/committee-debate", tags=["Multi-Agent Debate"])
+def run_autonomous_committee_debate(req: CommitteeDebateRequest):
+    """
+    Executes a 5-Agent Autonomous Audit Committee debate:
+    1. Forensic Auditor Agent (Benford 1st, 2nd, two-digit 10..99, duplicates, round numbers)
+    2. Quantitative Financial Analyst (DuPont ROE decomposition, corporate ratios, proofs)
+    3. Cross-Document Reconciler (source contradictions & footnote disclosures)
+    4. Adversarial Red-Team / Devil's Advocate (counter-theses & sensitivity stress-testing)
+    5. Chief Risk Officer (multi-round synthesis, quantitative consensus scoring, and HITL escalation if disagreement > 15%).
+    """
+    task_id = req.task_id or f"task_comm_{uuid.uuid4().hex[:8]}"
+    committee = AutonomousAuditCommittee(
+        disagreement_threshold=req.disagreement_threshold,
+        review_queue=review_queue
+    )
+    session = committee.convene_committee(
+        task_id=task_id,
+        goal=req.goal,
+        numbers=req.numbers,
+        period_data=req.period_data,
+        segment_data=req.segment_data,
+        dupont_data=req.dupont_data,
+        financial_ratios_data=req.financial_ratios_data
+    )
+    return session.model_dump()
 
 @app.get("/api/v1/hitl/queue", tags=["Governance & HITL"])
 def get_hitl_queue():

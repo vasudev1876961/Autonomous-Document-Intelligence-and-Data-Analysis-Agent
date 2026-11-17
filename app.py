@@ -695,71 +695,215 @@ with tabs[4]:
             st.bar_chart(pd.Series(mc_res.simulation_samples).sort_values().reset_index(drop=True))
 
 # ==========================================
-# TAB 6: MULTI-AGENT DEBATE COUNCIL
+# TAB 6: MULTI-AGENT DEBATE & AUTONOMOUS AUDIT COMMITTEE
 # ==========================================
 with tabs[5]:
-    st.subheader("⚔️ Multi-Agent Red-Team Debate Council")
-    st.caption("Adversarial cross-examination between Quantitative Analysts, Retrieval Specialists, and Red-Team Auditors.")
-    state = st.session_state.last_state
-    
-    debate = state.debate_session if state else None
-    if not debate:
-        from src.tools.numerical_analysis import NumericalAnalyzer
-        sample_segs = [
-            {"segment": "Segment A", "p1": 500.0, "p2": 420.0},
-            {"segment": "Segment B", "p1": 300.0, "p2": 280.0},
-            {"segment": "Segment C", "p1": 200.0, "p2": 200.0},
-        ]
-        seg_summary = NumericalAnalyzer.analyze_segment_contributions("Revenue", sample_segs, "₹ lakh")
-        p_res = NumericalAnalyzer.compare_periods("Revenue", 1000.0, 900.0, "Q1", "Q2", "₹ lakh")
-        council = MultiAgentDebateCouncil()
-        debate = council.run_debate("Explain revenue decline from Q1 to Q2", p_res, seg_summary, None, []).model_dump()
+    st.subheader("🏛️ Autonomous Financial & Audit Committee")
+    st.caption("5-Agent Adversarial Swarm Architecture: Forensics, Quant, Cross-Document Reconciler, Devil's Advocate, and Chief Risk Officer.")
 
-    verdict = debate.get("verdict", {})
-    v_c1, v_c2 = st.columns([1, 2])
-    with v_c1:
-        st.markdown(f"### Consensus Status")
-        if verdict.get("consensus_reached"):
-            st.success(f"🤝 **Consensus Achieved** ({verdict.get('confidence_score', 0)*100:.1f}% confidence)")
+    comm_tab1, comm_tab2 = st.tabs([
+        "🏛️ 5-Agent Consensus Committee",
+        "⚔️ Classic Chamber Debate Council"
+    ])
+
+    with comm_tab1:
+        st.markdown("#### Autonomous Corporate Audit & Governance Committee")
+        st.caption("Debates, red-teams, mathematically proves, and establishes quantitative consensus before certifying corporate findings.")
+
+        comm_col1, comm_col2 = st.columns([2, 1])
+        with comm_col1:
+            comm_goal = st.text_input(
+                "Audit Mandate / Topic",
+                value="Audit financial integrity, earnings performance, and 3-stage DuPont return on equity.",
+                key="comm_mandate"
+            )
+        with comm_col2:
+            comm_disagreement_thresh = st.slider(
+                "Disagreement Tolerance (HITL Trigger)",
+                min_value=5, max_value=30, value=15, step=1,
+                format="%d%%",
+                help="If specialist disagreement exceeds this percentage, the CRO automatically halts certification and escalates to HITL Review Queue."
+            ) / 100.0
+
+        with st.expander("⚙️ Corporate Financial & DuPont Audit Inputs", expanded=False):
+            dp_c1, dp_c2, dp_c3, dp_c4 = st.columns(4)
+            with dp_c1:
+                comm_ni = st.number_input("Net Income (₹ lakh)", value=120.0, step=10.0, key="comm_ni")
+            with dp_c2:
+                comm_rev = st.number_input("Revenue (₹ lakh)", value=900.0, step=50.0, key="comm_rev")
+            with dp_c3:
+                comm_assets = st.number_input("Total Assets (₹ lakh)", value=1500.0, step=100.0, key="comm_assets")
+            with dp_c4:
+                comm_equity = st.number_input("Total Equity (₹ lakh)", value=800.0, step=50.0, key="comm_equity")
+
+        run_comm = st.button("⚡ Convene Autonomous Audit Committee", type="primary", key="btn_run_comm")
+
+        state = st.session_state.last_state
+        comm_session = state.committee_session if (state and state.committee_session) else None
+
+        if run_comm or not comm_session:
+            from src.agent.committee import AutonomousAuditCommittee
+            sample_segs = [
+                {"segment": "Segment A", "p1": 500.0, "p2": 420.0},
+                {"segment": "Segment B", "p1": 300.0, "p2": 280.0},
+                {"segment": "Segment C", "p1": 200.0, "p2": 200.0},
+            ]
+            period_data = {
+                "metric": "Revenue",
+                "p1": 1000.0,
+                "p2": comm_rev,
+                "p1_name": "Q1",
+                "p2_name": "Q2",
+                "unit": "₹ lakh"
+            }
+            dupont_data = {
+                "net_income": comm_ni,
+                "revenue": comm_rev,
+                "total_assets": comm_assets,
+                "total_equity": comm_equity
+            }
+
+            committee_engine = AutonomousAuditCommittee(
+                disagreement_threshold=comm_disagreement_thresh,
+                review_queue=st.session_state.review_queue
+            )
+            comm_sess_obj = committee_engine.convene_committee(
+                task_id=f"comm_{st.session_state.task_counter}",
+                goal=comm_goal,
+                period_data=period_data,
+                segment_data=sample_segs,
+                dupont_data=dupont_data
+            )
+            comm_session = comm_sess_obj.model_dump()
+            if state:
+                state.committee_session = comm_session
+
+        c_verdict = comm_session.get("verdict", {})
+
+        # Top Executive Banner & Consensus Metrics
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            conf_val = c_verdict.get("consensus_confidence_score", 1.0) * 100.0
+            st.metric("Consensus Confidence", f"{conf_val:.1f}%", delta="Proven" if conf_val >= 85 else "-Disputed")
+        with m2:
+            dis_val = c_verdict.get("disagreement_rate", 0.0) * 100.0
+            st.metric("Specialist Disagreement", f"{dis_val:.1f}%", delta=f"Threshold: {comm_disagreement_thresh*100:.0f}%", delta_color="inverse")
+        with m3:
+            posture = c_verdict.get("risk_posture", "APPROVED")
+            st.metric("Risk Posture", posture)
+        with m4:
+            hitl_req = c_verdict.get("requires_hitl", False)
+            st.metric("HITL Governance", "ESCALATED" if hitl_req else "PASSED")
+
+        if hitl_req:
+            st.warning(f"🚨 **CHIEF RISK OFFICER ESCALATION:** {c_verdict.get('hitl_reason')}. An approval request has been queued in the **Human-in-the-Loop Review Center (Tab 7)**.")
         else:
-            st.warning("⚠️ **Unresolved Dissenting Claims**")
-        st.markdown(f"**HITL Mandate:** `{'Required' if verdict.get('requires_hitl') else 'Automated Verification'}`")
-    with v_c2:
-        st.markdown("### Executive Supervisor Recommendation")
-        st.info(f"📜 {verdict.get('audit_recommendation', 'Approved.')}")
+            st.success(f"⚖️ **CHIEF RISK OFFICER RULING:** {c_verdict.get('audit_recommendation')}")
 
-    st.markdown("---")
-    st.markdown("#### 🎙️ Chamber Debate Transcript")
-    for msg in debate.get("rounds", []):
-        role = msg.get("speaker_role")
-        name = msg.get("speaker_name")
-        r_num = msg.get("round_number")
-        content = msg.get("content")
-        cites = msg.get("citations", [])
+        st.markdown("---")
+        st.markdown("#### 🎙️ Chamber Debate & Cross-Examination Log")
+        for r_item in comm_session.get("debate_rounds", []):
+            r_role = r_item.get("speaker_role")
+            r_name = r_item.get("speaker_name")
+            r_stage = r_item.get("stage", "Debate")
+            r_num = r_item.get("round_number", 1)
+            r_content = r_item.get("content", "")
+            r_cites = r_item.get("citations", [])
 
-        role_icons = {
-            "Quantitative Analyst": "🧮",
-            "Retrieval Specialist": "🔍",
-            "Red-Team Auditor": "🛡️",
-            "Executive Supervisor": "👑"
-        }
-        icon = role_icons.get(role, "🤖")
-        with st.chat_message(name, avatar=icon):
-            st.markdown(f"**[Round {r_num}] {role} ({name})**")
-            st.write(content)
-            if cites:
-                st.caption(f"Citations: {', '.join(cites)}")
+            icons = {
+                "Quantitative Financial Analyst": "🧮",
+                "Forensic Auditor": "🛡️",
+                "Cross-Document Reconciler": "📑",
+                "Adversarial Red-Team (Devil's Advocate)": "🎯",
+                "Chief Risk Officer (Synthesizer)": "👑"
+            }
+            avatar = icons.get(r_role, "🤖")
+            with st.chat_message(r_name, avatar=avatar):
+                st.markdown(f"**[Round {r_num}: {r_stage}] {r_role} ({r_name})**")
+                for line in r_content.split("\n"):
+                    st.write(line)
+                if r_cites:
+                    st.caption(f"↳ Verified Citations: {', '.join(r_cites)}")
 
-    st.markdown("---")
-    f_c1, f_c2 = st.columns(2)
-    with f_c1:
-        st.markdown("#### ✅ Agreed Facts")
-        for f in verdict.get("agreed_facts", []):
-            st.markdown(f"- {f}")
-    with f_c2:
-        st.markdown("#### ❓ Surviving Uncertainties / Disputed Claims")
-        for d in verdict.get("disputed_claims", []):
-            st.markdown(f"- ⚠️ {d}")
+        st.markdown("---")
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            st.markdown("#### ✅ Agreed & Proven Corporate Facts")
+            for af in c_verdict.get("agreed_facts", []):
+                st.markdown(f"- ✓ {af}")
+        with f_col2:
+            st.markdown("#### ⚠️ Contested Points & Disclosures")
+            disputes = c_verdict.get("disputed_claims", [])
+            uncertainties = c_verdict.get("unresolved_uncertainties", [])
+            if not disputes and not uncertainties:
+                st.info("Zero active disputes. All findings verified.")
+            for dc in disputes:
+                st.markdown(f"- ✗ **Disputed:** {dc}")
+            for un in uncertainties:
+                st.markdown(f"- ❓ **Uncertainty Gap:** {un}")
+
+    with comm_tab2:
+        st.subheader("⚔️ Classic Multi-Agent Chamber Debate Council")
+        st.caption("Adversarial cross-examination between Quantitative Analysts, Retrieval Specialists, and Red-Team Auditors.")
+        state = st.session_state.last_state
+        debate = state.debate_session if state else None
+        if not debate:
+            from src.tools.numerical_analysis import NumericalAnalyzer
+            sample_segs = [
+                {"segment": "Segment A", "p1": 500.0, "p2": 420.0},
+                {"segment": "Segment B", "p1": 300.0, "p2": 280.0},
+                {"segment": "Segment C", "p1": 200.0, "p2": 200.0},
+            ]
+            seg_summary = NumericalAnalyzer.analyze_segment_contributions("Revenue", sample_segs, "₹ lakh")
+            p_res = NumericalAnalyzer.compare_periods("Revenue", 1000.0, 900.0, "Q1", "Q2", "₹ lakh")
+            council = MultiAgentDebateCouncil()
+            debate = council.run_debate("Explain revenue decline from Q1 to Q2", p_res, seg_summary, None, []).model_dump()
+
+        verdict = debate.get("verdict", {})
+        v_c1, v_c2 = st.columns([1, 2])
+        with v_c1:
+            st.markdown("### Consensus Status")
+            if verdict.get("consensus_reached"):
+                st.success(f"🤝 **Consensus Achieved** ({verdict.get('confidence_score', 0)*100:.1f}% confidence)")
+            else:
+                st.warning("⚠️ **Unresolved Dissenting Claims**")
+            st.markdown(f"**HITL Mandate:** `{'Required' if verdict.get('requires_hitl') else 'Automated Verification'}`")
+        with v_c2:
+            st.markdown("### Executive Supervisor Recommendation")
+            st.info(f"📜 {verdict.get('audit_recommendation', 'Approved.')}")
+
+        st.markdown("---")
+        st.markdown("#### 🎙️ Chamber Debate Transcript")
+        for msg in debate.get("rounds", []):
+            role = msg.get("speaker_role")
+            name = msg.get("speaker_name")
+            r_num = msg.get("round_number")
+            content = msg.get("content")
+            cites = msg.get("citations", [])
+
+            role_icons = {
+                "Quantitative Analyst": "🧮",
+                "Retrieval Specialist": "🔍",
+                "Red-Team Auditor": "🛡️",
+                "Executive Supervisor": "👑"
+            }
+            icon = role_icons.get(role, "🤖")
+            with st.chat_message(name, avatar=icon):
+                st.markdown(f"**[Round {r_num}] {role} ({name})**")
+                st.write(content)
+                if cites:
+                    st.caption(f"Citations: {', '.join(cites)}")
+
+        st.markdown("---")
+        cl_f1, cl_f2 = st.columns(2)
+        with cl_f1:
+            st.markdown("#### ✅ Agreed Facts")
+            for f in verdict.get("agreed_facts", []):
+                st.markdown(f"- {f}")
+        with cl_f2:
+            st.markdown("#### ❓ Surviving Uncertainties / Disputed Claims")
+            for d in verdict.get("disputed_claims", []):
+                st.markdown(f"- ⚠️ {d}")
 
 # ==========================================
 # TAB 7: HUMAN-IN-THE-LOOP REVIEW CENTER
