@@ -4,9 +4,10 @@ Provides headless APIs for investigation orchestration, multi-agent debate,
 scenario modeling, human-in-the-loop review queue, and verified report downloads.
 """
 from pathlib import Path
+import time
 from typing import Any, Optional
 import uuid
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from src.agent.committee import AutonomousAuditCommittee
 from src.human_review.approval import ApprovalDecision
 from src.human_review.review_queue import ReviewQueue
 from src.evaluation.benchmark_runner import BenchmarkRunner
+from src.observability.metrics import prometheus_metrics
 
 app = FastAPI(
     title="Autonomous Document Intelligence & Data Analysis Agent API",
@@ -32,6 +34,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def prometheus_telemetry_middleware(request: Request, call_next):
+    start_time = time.time()
+    prometheus_metrics.active_requests += 1
+    try:
+        response = await call_next(request)
+        duration = time.time() - start_time
+        prometheus_metrics.record_request(
+            method=request.method,
+            endpoint=request.url.path,
+            status_code=response.status_code,
+            duration_sec=duration
+        )
+        return response
+    except Exception:
+        duration = time.time() - start_time
+        prometheus_metrics.record_request(
+            method=request.method,
+            endpoint=request.url.path,
+            status_code=500,
+            duration_sec=duration
+        )
+        raise
+    finally:
+        prometheus_metrics.active_requests = max(0, prometheus_metrics.active_requests - 1)
 
 # Persistent orchestrator and queue instances
 orchestrator = AgentOrchestrator()
@@ -586,6 +614,25 @@ def run_benchmarks():
     runner = BenchmarkRunner()
     result = runner.run_all_benchmarks()
     return result.model_dump()
+
+@app.get("/metrics", tags=["Production Observability"])
+def get_prometheus_metrics():
+    """
+    Exposes metrics in standard Prometheus exposition format (RFC 0.0.4)
+    for scraping by Prometheus, Grafana Agent, or Datadog.
+    """
+    return Response(
+        content=prometheus_metrics.generate_prometheus_exposition(),
+        media_type="text/plain; version=0.0.4; charset=utf-8"
+    )
+
+@app.get("/api/v1/observability/stats", tags=["Production Observability"])
+def get_observability_stats():
+    """
+    Returns structured JSON operational telemetry including uptime, latency percentiles,
+    agent execution step counters, and token consumption statistics.
+    """
+    return prometheus_metrics.get_summary()
 
 @app.get("/api/v1/reports/{report_name}", tags=["Deliverables"])
 def download_report(report_name: str):

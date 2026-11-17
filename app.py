@@ -1306,6 +1306,26 @@ with tabs[10]:
         ```
         """)
 
+    st.markdown("---")
+    st.subheader("📊 Production Observability & Prometheus Metrics Engine")
+    st.caption("Live latency tracking, token throughput, agent execution steps, and Prometheus RFC 0.0.4 exposition.")
+
+    from src.observability.metrics import prometheus_metrics
+    stats = prometheus_metrics.get_summary()
+
+    obs_c1, obs_c2, obs_c3, obs_c4 = st.columns(4)
+    with obs_c1:
+        st.metric("Service Uptime", f"{stats['uptime_seconds']}s")
+    with obs_c2:
+        st.metric("Total HTTP Requests", stats["total_http_requests"])
+    with obs_c3:
+        st.metric("Average Latency", f"{stats['average_latency_ms']:.1f} ms")
+    with obs_c4:
+        st.metric("Active Concurrency", stats["active_requests"])
+
+    with st.expander("📈 Live Prometheus Metrics Exposition (/metrics)", expanded=False):
+        st.code(prometheus_metrics.generate_prometheus_exposition(), language="text")
+
 # ==========================================
 # TAB 12: FORENSIC ACCOUNTING & BENFORD AUDIT
 # ==========================================

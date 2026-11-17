@@ -142,19 +142,26 @@ Open your browser to `http://localhost:8501`.
 
 ---
 
-## 🐳 Docker Deployment
+## 🐳 Enterprise Docker Deployment & Microservices
 
-Run the complete multi-container stack (Dashboard + FastAPI Microservice + Shared Volume) via Docker Compose:
+Run the enterprise microservice cluster (Streamlit Executive Dashboard, FastAPI REST API, ChromaDB Vector Service, and Redis Cache) via Docker Compose:
 
 ```bash
-# Build and start services
+# Build and orchestrate all 4 microservices
 docker-compose up --build
 
-# Services available:
-# • Streamlit Dashboard:  http://localhost:8501
-# • FastAPI REST Docs:    http://localhost:8000/docs
-# • Health Check:         http://localhost:8000/health
+# Services online:
+# • Streamlit Executive UI:  http://localhost:8501
+# • Enterprise FastAPI REST: http://localhost:8000/docs
+# • Prometheus Telemetry:    http://localhost:8000/metrics
+# • ChromaDB Vector Server:  http://localhost:8001
+# • Redis In-Memory Cache:   localhost:6379
 ```
+
+### Multi-Stage Containerization & Hardening
+- **Multi-Stage Build (`Dockerfile`):** Separate `builder` stage for compiling binary wheels and a minimal unprivileged `runtime` container running as a non-root system user (`adidauser:10001`).
+- **Prometheus Observability (`/metrics`):** Emits RFC 0.0.4 exposition format tracking HTTP latencies (p50/p90/p99), agent node execution steps, token throughput, and deterministic math errors.
+- **Automated CI/CD (`.github/workflows/ci.yml`):** Multi-job pipeline executing Ruff code quality analysis, Bandit security scanning, and Pytest matrix across Python 3.10, 3.11, and 3.12.
 
 ---
 
@@ -288,6 +295,8 @@ Interactive Documentation:
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/health` | System health check, active DB path, and engine flags |
+| `GET` | `/metrics` | Prometheus scraper exposition format (latencies, token counters, error rates) |
+| `GET` | `/api/v1/observability/stats` | Operational telemetry JSON summary with latency quantiles |
 | `POST` | `/api/v1/investigate` | Autonomous multi-node document investigation |
 | `POST` | `/api/v1/forensics/benford` | Benford first-digit MAD and Chi-Square analysis |
 | `POST` | `/api/v1/forensics/benford-second-digit` | Benford second-digit (0..9) MAD and distribution audit |
