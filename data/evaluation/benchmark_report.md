@@ -1,7 +1,7 @@
 # Autonomous Document Intelligence Benchmark Report
 **Benchmark Suite:** Autonomous Document Intelligence Benchmark Suite (ADI-Bench v1.0)  
-**Execution Timestamp:** `2026-10-30 05:20:00 UTC`  
-**Average Latency:** 2.52s  
+**Execution Timestamp:** `2026-11-20 16:55:05 UTC`  
+**Average Latency:** 2.25s  
 
 ---
 

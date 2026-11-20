@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v4.1.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-12--Module%20UI-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph%20StateGraph-1C3C3C)](https://github.com/langchain-ai/langgraph)
-[![Tests Passing](https://img.shields.io/badge/Tests-95%2F95%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
+[![Tests Passing](https://img.shields.io/badge/Tests-113%2F113%20Passing%20(100%25)-success?logo=pytest)](https://github.com/vasudev1876961/Autonomous-Document-Intelligence-and-Data-Analysis-Agent)
 [![Packaging: PEP 517](https://img.shields.io/badge/Packaging-PEP%20517%20%7C%20pyproject.toml-blue)](pyproject.toml)
 [![Docker Ready](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -386,9 +386,15 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │   ├── evaluation/                # Benchmark dataset & exported reports
 │   └── sample_documents/          # Benchmark PDF, Excel, CSV, and financial datasets
 ├── outputs/                       # Generated Markdown, PDF, HTML, and JSON audit packs
+├── paper/                         # Publication-grade pre-print & LaTeX source
+│   ├── ADIDA_Research_Paper.md    # Full academic pre-print manuscript with proofs
+│   └── ADIDA_Research_Paper.tex   # Compile-ready IEEE Transactions LaTeX source
 ├── scripts/
+│   ├── demo_all_pillars.py        # Complete end-to-end all-pillars golden demonstration
+│   ├── generate_sample_data.py    # Benchmark scenario dataset generator
 │   ├── run_api.py                 # FastAPI microservice runner
-│   └── run_benchmarks.py          # Benchmark evaluation script
+│   ├── run_benchmarks.py          # Benchmark evaluation script (ADI-Bench v1.0)
+│   └── run_investigation.py       # Headless document investigation CLI
 ├── src/
 │   ├── agent/
 │   │   ├── brain.py               # Analytical reasoning & synthesis
@@ -448,7 +454,7 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 │       ├── consistency_checks.py  # Contradiction & unit verification
 │       ├── hallucination_guard.py # Real-time proposition reflection guardrail
 │       └── verifier_pipeline.py   # Complete verification audit pipeline
-├── tests/                         # 95 automated unit, integration & forensic tests
+├── tests/                         # 113 automated unit, integration & forensic tests (29 test suites)
 ├── app.py                         # Streamlit 12-module Executive Dashboard
 ├── cli.py                         # Unified enterprise command-line tool (adida)
 ├── pyproject.toml                 # Standard PEP 517 build configuration
@@ -462,13 +468,28 @@ ADIDA includes a built-in automated benchmark suite (`scripts/run_benchmarks.py`
 
 ## 🧪 Testing & Validation
 
-The test suite contains **75 automated unit, integration, and forensic tests (100% passing)** verifying mathematical proofs, Benford distributions, DuPont decomposition, causal shock propagation, cryptographic signatures, and REST endpoints.
+The test suite contains **113 automated unit, integration, and forensic tests across 29 test suites (100% passing)** verifying mathematical proofs, Benford distributions (1st, 2nd, and 10..99 digits), DuPont decomposition, causal shock propagation, cryptographic Merkle tree inclusion proofs, and REST endpoints.
 
 Run the full test suite with:
 
 ```bash
 pytest
 ```
+
+Run the complete end-to-end all-pillars golden demonstration:
+
+```bash
+python scripts/demo_all_pillars.py
+```
+
+---
+
+## 📄 Academic Research Paper & Technical Whitepaper
+
+A publication-grade pre-print manuscript and compile-ready LaTeX manuscript detailing ADIDA's formal mathematical formulations, game-theoretic committee disagreement dynamics, and ADI-Bench empirical benchmarks are available in the [`paper/`](paper/) directory:
+
+- **Full Markdown Manuscript:** [`paper/ADIDA_Research_Paper.md`](paper/ADIDA_Research_Paper.md)
+- **Compile-Ready IEEE LaTeX Source:** [`paper/ADIDA_Research_Paper.tex`](paper/ADIDA_Research_Paper.tex)
 
 ---
 
